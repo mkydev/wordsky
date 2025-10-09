@@ -48,14 +48,6 @@ const containerSize = computed(() => {
     return 320; // Default and larger screens
 });
 
-const letterSize = computed(() => {
-    const vw = Math.min(windowSize.value.width, windowSize.value.height);
-    if (vw <= 480) return 38; // Very small phones
-    if (vw <= 600) return 42; // Small phones
-    if (vw <= 768) return 46; // Tablets
-    return 50; // Default and larger screens
-});
-
 const radius = computed(() => {
     const vw = Math.min(windowSize.value.width, windowSize.value.height);
     if (vw <= 480) return 80; // Very small phones
@@ -118,7 +110,7 @@ const lines = computed(() => {
         for (let i = 0; i < selectedIndices.value.length - 1; i++) {
             const fromIndex = selectedIndices.value[i];
             const toIndex = selectedIndices.value[i + 1];
-            
+
             if (fromIndex === undefined || toIndex === undefined) continue;
 
             const fromCoords = getLetterCoords(fromIndex);
@@ -155,13 +147,13 @@ function handleSelection(letter: string, index: number) {
 
 function handleTouchMove(event: TouchEvent) {
     if (!isSelecting.value) return;
-    
+
     event.preventDefault();
     const touch = event.touches[0];
     if (!touch) return;
-    
+
     const element = document.elementFromPoint(touch.clientX, touch.clientY);
-    
+
     if (element && element.classList.contains('letter')) {
         const letter = (element as HTMLElement).dataset.letter!;
         const index = parseInt((element as HTMLElement).dataset.index!);
