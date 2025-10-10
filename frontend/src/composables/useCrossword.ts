@@ -25,7 +25,7 @@ export function useCrossword(words: ComputedRef<string[]>) {
         return { grid: [], placedWords: [] };
       }
 
-      const gridSize = 40;
+      const gridSize = 30; // Izgara boyutu optimize edildi
       const newGrid: (string | null)[][] = Array(gridSize).fill(null).map(() => Array(gridSize).fill(null));
       const pWords: PlacedWord[] = [];
 
@@ -36,26 +36,27 @@ export function useCrossword(words: ComputedRef<string[]>) {
 
       for (let i = 1; i < sortedWords.length; i++) {
         const wordToPlace = sortedWords[i];
-
         if (!wordToPlace) continue;
 
-        let bestFit = { score: -1, row: 0, col: 0, horizontal: false, placed: false };
+        let bestFit = { score: -1, row: 0, col: 0, horizontal: true, placed: false };
 
+        // Kelimeyi kesiştirerek yerleştirmeyi dene
         for (const pWord of pWords) {
           for (let j = 0; j < pWord.word.length; j++) {
             for (let k = 0; k < wordToPlace.length; k++) {
               if (pWord.word[j] === wordToPlace[k]) {
                 const horizontal = !pWord.horizontal;
                 let row, col;
-                if (pWord.horizontal) { // Mevcut kelime yatay, yenisi dikey olacak
-                    row = pWord.row - k;
-                    col = pWord.col + j;
-                } else { // Mevcut kelime dikey, yenisi yatay olacak
-                    row = pWord.row + j;
-                    col = pWord.col - k;
+
+                if (pWord.horizontal) { // Mevcut kelime yatay, yenisi dikey
+                  row = pWord.row - k;
+                  col = pWord.col + j;
+                } else { // Mevcut kelime dikey, yenisi yatay
+                  row = pWord.row + j;
+                  col = pWord.col - k;
                 }
 
-                if (canPlaceWord(wordToPlace, row, col, horizontal, newGrid, gridSize, pWords)) {
+                if (canPlaceWord(wordToPlace, row, col, horizontal, newGrid, gridSize)) {
                   bestFit = { score: 1, row, col, horizontal, placed: true };
                   break;
                 }
@@ -70,17 +71,15 @@ export function useCrossword(words: ComputedRef<string[]>) {
           placeWord(wordToPlace, bestFit.row, bestFit.col, bestFit.horizontal, newGrid);
           pWords.push({ word: wordToPlace, row: bestFit.row, col: bestFit.col, horizontal: bestFit.horizontal });
         } else {
-           let placedFallback = false;
-           for(let r = 0; r < gridSize && !placedFallback; r++){
-               for(let c = 0; c < gridSize - wordToPlace.length + 1 && !placedFallback; c++){
-                   if(canPlaceWord(wordToPlace, r, c, true, newGrid, gridSize, pWords)) {
-                       placeWord(wordToPlace, r, c, true, newGrid);
-                       pWords.push({ word: wordToPlace, row: r, col: c, horizontal: true });
-                       placedFallback = true;
-                   }
-               }
-           }
+          // Yerleştirilemeyen kelimeyi konsola yaz (opsiyonel)
+          console.warn(`'${wordToPlace}' kelimesi yerleştirilemedi.`);
         }
+      }
+
+      // 💡 Yeni: Tüm kelimelerin yerleştirilip yerleştirilmediğini kontrol et
+      if (pWords.length !== sortedWords.length) {
+        console.warn('Tüm kelimeler yerleştirilemedi, bu nedenle bulmaca geçersiz.');
+        return { grid: [], placedWords: [] }; // Geçersizse boş ızgara döndür
       }
 
       let minRow = gridSize, maxRow = -1, minCol = gridSize, maxCol = -1;
@@ -121,7 +120,8 @@ export function useCrossword(words: ComputedRef<string[]>) {
   };
 }
 
-function canPlaceWord(word: string, row: number, col: number, horizontal: boolean, grid: (string | null)[][], gridSize: number, placedWords: PlacedWord[]): boolean {
+
+function canPlaceWord(word: string, row: number, col: number, horizontal: boolean, grid: (string | null)[][], gridSize: number): boolean {
   if (row < 0 || col < 0 || (horizontal && col + word.length > gridSize) || (!horizontal && row + word.length > gridSize)) {
     return false;
   }
@@ -130,35 +130,47 @@ function canPlaceWord(word: string, row: number, col: number, horizontal: boolea
     const r = horizontal ? row : row + i;
     const c = horizontal ? col + i : col;
 
-    const isIntersection = placedWords.some(p => {
-      if (p.horizontal === horizontal) return false;
-      if (p.horizontal) {
-        return p.row === r && c >= p.col && c < p.col + p.word.length;
-      } else {
-        return p.col === c && r >= p.row && r < p.row + p.word.length;
-      }
-    });
-
     const cell = grid[r]?.[c];
-    if (cell != null && cell !== word[i]) {
+
+    // 1. Kesişim kontrolü: Hücre doluysa ve harf eşleşmiyorsa, yerleştirme.
+    if (cell !== null && cell !== word[i]) {
       return false;
     }
 
-    if (!isIntersection) {
+    // 2. Bitişiklik kontrolü: Kelimelerin birbirine yapışmasını önle.
+    // Sadece kesişim olmayan noktalarda bu kontrolü yap.
+    if (cell !== word[i]) {
       if (horizontal) {
-        if ((grid[r - 1]?.[c] ?? null) !== null || (grid[r + 1]?.[c] ?? null) !== null) return false;
-      } else {
-        if ((grid[r]?.[c - 1] ?? null) !== null || (grid[r]?.[c + 1] ?? null) !== null) return false;
+        // Üst ve alt komşular dolu olmamalı.
+        if ((grid[r - 1]?.[c] ?? null) !== null || (grid[r + 1]?.[c] ?? null) !== null) {
+          return false;
+        }
+      } else { // Dikey
+        // Sol ve sağ komşular dolu olmamalı.
+        if ((grid[r]?.[c - 1] ?? null) !== null || (grid[r]?.[c + 1] ?? null) !== null) {
+          return false;
+        }
       }
     }
   }
 
+  // 3. Kelimenin başı ve sonu kontrolü: Başka kelimelerle birleşmesini önle.
   if (horizontal) {
-    if ((grid[row]?.[col - 1] ?? null) !== null || (grid[row]?.[col + word.length] ?? null) !== null) {
+    // Kelimenin solunda boşluk olmalı (veya ızgara kenarı).
+    if ((grid[row]?.[col - 1] ?? null) !== null) {
       return false;
     }
-  } else {
-    if ((grid[row - 1]?.[col] ?? null) !== null || (grid[row + word.length]?.[col] ?? null) !== null) {
+    // Kelimenin sağında boşluk olmalı (veya ızgara kenarı).
+    if ((grid[row]?.[col + word.length] ?? null) !== null) {
+      return false;
+    }
+  } else { // Dikey
+    // Kelimenin üstünde boşluk olmalı (veya ızgara kenarı).
+    if ((grid[row - 1]?.[col] ?? null) !== null) {
+      return false;
+    }
+    // Kelimenin altında boşluk olmalı (veya ızgara kenarı).
+    if ((grid[row + word.length]?.[col] ?? null) !== null) {
       return false;
     }
   }
@@ -173,10 +185,10 @@ function placeWord(word: string, row: number, col: number, horizontal: boolean, 
 
     if (horizontal) {
       const gridRow = grid[row];
-      if (gridRow) gridRow[col + i] = ch ?? null;
+      if (gridRow) gridRow[col + i] = ch;
     } else {
       const gridRow = grid[row + i];
-      if (gridRow) gridRow[col] = ch ?? null;
+      if (gridRow) gridRow[col] = ch;
     }
   }
 }

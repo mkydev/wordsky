@@ -42,18 +42,18 @@ const { letters } = toRefs(props);
 
 const containerSize = computed(() => {
     const vw = Math.min(windowSize.value.width, windowSize.value.height);
-    if (vw <= 480) return 220; // Very small phones
-    if (vw <= 600) return 260; // Small phones
-    if (vw <= 768) return 300; // Tablets
-    return 320; // Default and larger screens
+    if (vw <= 480) return 260;
+    if (vw <= 600) return 300;
+    if (vw <= 768) return 340;
+    return 380;
 });
 
 const radius = computed(() => {
     const vw = Math.min(windowSize.value.width, windowSize.value.height);
-    if (vw <= 480) return 80; // Very small phones
-    if (vw <= 600) return 95; // Small phones
-    if (vw <= 768) return 110; // Tablets
-    return 120; // Default and larger screens
+    if (vw <= 480) return 100;
+    if (vw <= 600) return 115;
+    if (vw <= 768) return 130;
+    return 145;
 });
 
 // Reactive window size tracking for better mobile support
@@ -174,10 +174,10 @@ function endSelection() {
 
 <style scoped>
 .selection-display {
-    font-size: clamp(1.4rem, 4vw, 2rem);
+    font-size: clamp(1.4rem, 4vw, 1.8rem); /* Boyutu biraz küçült */
     font-weight: bold;
-    margin-bottom: 1.5rem;
-    height: clamp(2rem, 5vw, 3rem);
+    margin-bottom: 0.5rem; /* Boşluğu azalt */
+    height: clamp(1.8rem, 4.5vw, 2.5rem); /* Yüksekliği azalt */
     text-align: center;
     color: #42b883;
     display: flex;
@@ -192,13 +192,13 @@ function endSelection() {
 }
 
 .letter-circle-container {
-  width: clamp(220px, 80vw, 320px);
-  height: clamp(220px, 80vw, 320px);
-  max-width: min(80vw, 80vh);
-  max-height: min(80vw, 80vh);
+  width: clamp(260px, 80vw, 400px); /* Daha büyük */
+  height: clamp(260px, 80vw, 400px);
+  max-width: min(90vw, 90vh);
+  max-height: min(90vw, 90vh);
   border-radius: 50%;
   position: relative;
-  margin: 1rem auto;
+  margin: 0.5rem auto; /* Margin azaltıldı */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -208,8 +208,8 @@ function endSelection() {
 
 .letter {
   position: absolute;
-  width: clamp(38px, 8vw, 50px);
-  height: clamp(38px, 8vw, 50px);
+  width: clamp(42px, 10vw, 60px); /* Daha büyük harfler */
+  height: clamp(42px, 10vw, 60px);
   border-radius: 50%;
   background-color: #34495e;
   border: 3px solid #ecf0f1;
@@ -217,7 +217,7 @@ function endSelection() {
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: clamp(0.9rem, 3vw, 1.6rem);
+  font-size: clamp(1.2rem, 4vw, 2rem); /* Daha büyük font */
   font-weight: bold;
   cursor: pointer;
   user-select: none;

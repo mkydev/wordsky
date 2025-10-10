@@ -2,10 +2,11 @@
 import { ref, computed, watch } from 'vue';
 import LetterCircle from './components/LetterCircle.vue';
 import WordDisplay from './components/WordDisplay.vue';
+import { useCrossword } from './composables/useCrossword';
 
 const API_BASE_URL = 'http://localhost:3000/api/v1';
 
-const words = ref<string[]>([]);
+const apiWords = ref<string[]>([]);
 const letters = ref<string[]>([]);
 const difficulty = ref<4 | 5 | 6>(4);
 const loading = ref(false);
@@ -15,12 +16,16 @@ const gameStarted = ref(false);
 const foundWords = ref<string[]>([]);
 const currentSelectedWord = ref<string>('');
 
+const { grid, placedWords } = useCrossword(computed(() => apiWords.value));
+const words = computed(() => placedWords.value.map(p => p.word.toUpperCase()));
+
 async function createNewPuzzle(diff: 4 | 5 | 6) {
   difficulty.value = diff;
   loading.value = true;
   error.value = null;
   gameStarted.value = true;
   foundWords.value = [];
+  apiWords.value = [];
   try {
     const response = await fetch(`${API_BASE_URL}/puzzles/random?difficulty=${diff}`);
     if (!response.ok) {
@@ -30,8 +35,8 @@ async function createNewPuzzle(diff: 4 | 5 | 6) {
     if (!data.words || data.words.length === 0) {
       throw new Error('Bu zorlukta uygun bir bulmaca bulunamadı, lütfen tekrar deneyin.');
     }
-    words.value = data.words;
     letters.value = data.letters;
+    apiWords.value = data.words;
   } catch (e) {
     error.value = (e as Error).message;
     console.error('createNewPuzzle error:', e);
@@ -42,13 +47,13 @@ async function createNewPuzzle(diff: 4 | 5 | 6) {
 
 function goBackToDifficultySelection() {
   gameStarted.value = false;
-  words.value = [];
+  apiWords.value = [];
   letters.value = [];
 }
 
 watch(currentSelectedWord, (newWord: string) => {
-  if (newWord && words.value.includes(newWord) && !foundWords.value.includes(newWord)) {
-    foundWords.value.push(newWord);
+  if (newWord && words.value.includes(newWord.toUpperCase()) && !foundWords.value.includes(newWord.toUpperCase())) {
+    foundWords.value.push(newWord.toUpperCase());
   }
 });
 
@@ -69,7 +74,7 @@ function shuffleLetters() {
     <header>
       <h1>Word of YK</h1>
       <button v-if="gameStarted" @click="goBackToDifficultySelection" class="back-button">
-        ← Zorluk Seçimi
+        ←
       </button>
     </header>
 
@@ -90,37 +95,32 @@ function shuffleLetters() {
     </div>
 
     <div v-else>
-      <div class="game-info">
-        <span>{{ difficulty }} Harfli Bulmaca</span>
-      </div>
-
       <div v-if="loading" class="loading">Yeni bulmaca oluşturuluyor...</div>
       <div v-if="error" class="error">{{ error }}</div>
 
       <template v-if="!loading && !error && words.length > 0">
-          <div v-if="allWordsFound" class="success-message">
-            <h2>Tebrikler! Tüm kelimeleri buldunuz!</h2>
-            <div class="success-buttons">
-              <button @click="createNewPuzzle(difficulty)" class="next-btn">
-                Yeni Bulmaca
-              </button>
-              <button @click="goBackToDifficultySelection" class="restart-btn">Ana Menü</button>
+        <div v-if="allWordsFound" class="success-message">
+          <h2>Tebrikler! Tüm kelimeleri buldunuz!</h2>
+          <div class="success-buttons">
+            <button @click="createNewPuzzle(difficulty)" class="next-btn">
+              Yeni Bulmaca
+            </button>
+            <button @click="goBackToDifficultySelection" class="restart-btn">Ana Menü</button>
+          </div>
+        </div>
+
+        <template v-else>
+          <div class="game-container">
+            <div class="word-display-section">
+              <WordDisplay :grid="grid" :placed-words="placedWords" :found-words="foundWords" />
+            </div>
+            <div class="letter-circle-section">
+              <LetterCircle :letters="letters" v-model:current-selected-word="currentSelectedWord" @shuffle="shuffleLetters" />
             </div>
           </div>
-
-          <template v-else>
-            <div class="game-container">
-              <div class="word-display-section">
-                <WordDisplay :words="words" :found-words="foundWords" />
-              </div>
-              <div class="letter-circle-section">
-                <LetterCircle :letters="letters" v-model:current-selected-word="currentSelectedWord" @shuffle="shuffleLetters" />
-              </div>
-            </div>
-          </template>
+        </template>
       </template>
     </div>
-
   </main>
 </template>
 
@@ -128,34 +128,53 @@ function shuffleLetters() {
 main {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh; /* Tam ekran yüksekliği */
+  max-height: 100vh; /* Safari gibi tarayıcılarda fazladan kaymayı önle */
   font-family: sans-serif;
   background-color: #2c3e50;
   color: white;
   box-sizing: border-box;
   padding: 0 1rem;
+  overflow: hidden; /* Ana kaydırma çubuğunu gizle */
 }
 
 header {
-  text-align: center;
-  padding: 1rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Başlığı ortala */
+  padding: 1rem 1rem;
   flex-shrink: 0;
   position: relative;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .back-button {
-  position: absolute;
-  left: 1rem;
+  position: absolute; /* Mutlak pozisyon */
+  left: 1rem; /* Sol kenara sabitle */
   top: 50%;
   transform: translateY(-50%);
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.3);
   color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
+  border-radius: 50%; /* Daire şekli */
+  width: 40px; /* Sabit genişlik */
+  height: 40px; /* Sabit yükseklik */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem; /* İkon boyutunu ayarla */
   cursor: pointer;
-  font-size: 0.9rem;
   transition: all 0.2s ease;
+}
+
+h1 {
+  font-size: clamp(1.2rem, 5vw, 2rem);
+  margin: 0;
+  text-align: center;
+  flex-grow: 1;
+  padding: 0 50px; /* Butonun kaplayabileceği alan kadar boşluk bırak */
+  box-sizing: border-box;
 }
 
 .back-button:hover {
@@ -208,16 +227,6 @@ header {
   transform: translateY(-2px);
 }
 
-.game-info {
-  text-align: center;
-  padding: 1rem;
-  background: rgba(66, 184, 131, 0.1);
-  border-radius: 8px;
-  margin: 0 1rem 1rem 1rem;
-  color: #42b883;
-  font-weight: bold;
-}
-
 .success-buttons {
   display: flex;
   gap: 1rem;
@@ -226,7 +235,8 @@ header {
   margin-top: 1rem;
 }
 
-.next-btn, .restart-btn {
+.next-btn,
+.restart-btn {
   padding: 0.8rem 1.5rem;
   font-size: 1rem;
   cursor: pointer;
@@ -261,7 +271,8 @@ h1 {
   text-align: center;
 }
 
-.loading, .error {
+.loading,
+.error {
   text-align: center;
   padding: 2rem;
   font-size: 1.2rem;
@@ -276,29 +287,29 @@ h1 {
   flex-direction: column;
   flex: 1;
   align-items: center;
-  justify-content: flex-start;
-  max-width: 100%;
-  gap: 1.5rem;
-  padding: 0 1rem;
+  justify-content: space-around; /* Dikeyde boşlukları dağıt */
+  padding: 0 0.5rem;
+  min-height: 0;
 }
 
 .word-display-section {
-  flex: 0 1 auto;
+  flex-grow: 1; /* Boş alanı doldur */
+  flex-shrink: 1;
   width: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 120px;
+  min-height: 0; /* Küçülmesine izin ver */
 }
 
 .letter-circle-section {
-  flex: 1;
+  flex-shrink: 0; /* Küçülmesin */
   width: 100%;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  min-height: 250px;
+  padding: 1rem 0; /* Dikey boşluk */
 }
 
 .success-message {
@@ -309,6 +320,27 @@ h1 {
 .success-message h2 {
   font-size: 1.8rem;
   color: #42b883;
+}
+
+/* Orta ve büyük ekranlar için (tablet/desktop) */
+@media (min-width: 769px) {
+  .game-container {
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .word-display-section {
+    flex: 1 1 55%; /* Büyüyebilir, küçülebilir, temel boyut %55 */
+    height: 100%;
+  }
+  .letter-circle-section {
+    flex: 1 1 45%; /* Büyüyebilir, küçülebilir, temel boyut %45 */
+    height: 100%;
+    min-height: 400px;
+  }
 }
 
 @media (max-width: 768px) {

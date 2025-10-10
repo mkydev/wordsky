@@ -36,60 +36,72 @@ function canFormWord(word: string, letters: string[]): boolean {
 }
 
 // 🔹 Harflerden kelimeleri üret (3 → difficulty uzunluğunda)
-function generateWordsFromLetters(letters: string[], allWords: string[], maxWordLength: number): string[] {
-  return allWords.filter(word => {
-    if (word.length < 3 || word.length > maxWordLength) return false;
-    return canFormWord(word, letters);
-  });
+function generateWordsFromLetters(
+  letters: string[],
+  allWords: Set<string>, // 💡 Set olarak al
+  maxWordLength: number
+): Set<string> { // 💡 Set olarak döndür
+  const foundWords = new Set<string>();
+  for (const word of allWords) {
+    if (word.length >= 3 && word.length <= maxWordLength && canFormWord(word, letters)) {
+      foundWords.add(word);
+    }
+  }
+  return foundWords;
 }
 
 app.get('/api/v1/puzzles/random', (req, res) => {
   try {
     const difficulty = req.query.difficulty ? parseInt(req.query.difficulty as string, 10) : 4;
 
-    if (![4, 5, 6].includes(difficulty)) {
+    if (![4, 5, 6, 7].includes(difficulty)) { // 7 harfli kelimeler eklendi
       return res.status(400).json({ error: 'Geçersiz zorluk seviyesi.' });
     }
 
-    // 🔹 Yeni: Kelime sınırları
-    const MIN_WORD_COUNT = 6;
-    const MAX_WORD_COUNT = 8;
-    const MAX_ATTEMPTS = 1500;
+    const MIN_WORD_COUNT = 5; // Sınırlar güncellendi
+    const MAX_WORD_COUNT = 10;
+    const MAX_ATTEMPTS = 500; // Deneme sayısı azaltıldı
 
-    // 🔹 1. Tüm kelimeleri tek havuzda topla
-    const allWords = Object.values(turkishWords)
-      .flat()
-      .map(normalize)
-      .filter(w => w.length >= 3);
+    const allWords = new Set(
+      Object.values(turkishWords)
+        .flat()
+        .map(normalize)
+        .filter(w => w.length >= 3)
+    );
 
-    // 🔹 2. Harf havuzu
-    const letterPool = allWords.flatMap(w => [...w]);
+    const wordsByLength = Array.from(allWords).filter(w => w.length === difficulty);
+
+    if (wordsByLength.length === 0) {
+      return res.status(500).json({ error: `Bu uzunlukta (${difficulty}) hiç kelime bulunamadı.` });
+    }
 
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-      // 🔹 3. Rastgele harfleri seç
-      const letters = randomLettersFromPool(letterPool, difficulty);
+      // 1. Rastgele bir ana kelime seç
+      const baseWord = wordsByLength[Math.floor(Math.random() * wordsByLength.length)];
+      const letters = [...baseWord]; // Ana kelimenin harflerini kullan
 
-      // 🔹 4. Bu harflerle oluşturulabilecek kelimeleri bul
-      const constructible = generateWordsFromLetters(letters, allWords, difficulty);
+      // 2. Bu harflerle oluşturulabilecek kelimeleri bul
+      const constructibleSet = generateWordsFromLetters(letters, allWords, difficulty);
 
-      // 🔹 5. 6–8 kelime arasıysa döndür
-      if (constructible.length >= MIN_WORD_COUNT && constructible.length <= MAX_WORD_COUNT) {
+      // 3. Kelime sayısı uygunsa, bulmacayı döndür
+      if (constructibleSet.size >= MIN_WORD_COUNT && constructibleSet.size <= MAX_WORD_COUNT) {
+        const finalWords = Array.from(constructibleSet);
+
         console.log(`✅ Bulmaca bulundu (attempt ${attempt + 1})`);
         console.log(`Harfler: ${letters.join(', ')}`);
-        console.log(`Kelimeler (${constructible.length}): ${constructible.join(', ')}`);
+        console.log(`Kelimeler (${finalWords.length}): ${finalWords.join(', ')}`);
         console.log('-----------------------------');
 
         return res.json({
           letters,
-          words: constructible
-            .sort((a, b) => a.length - b.length)
-            .slice(0, MAX_WORD_COUNT), // Fazlaysa 8 taneye indir
+          words: finalWords.sort((a, b) => a.length - b.length || a.localeCompare(b)),
         });
       }
     }
 
-    console.error('❌ Hiç uygun bulmaca bulunamadı (6–8 kelime).');
+    console.error(`❌ Hiç uygun bulmaca bulunamadı (${MIN_WORD_COUNT}-${MAX_WORD_COUNT} kelime).`);
     return res.status(500).json({ error: 'Uygun bir bulmaca oluşturulamadı. Lütfen tekrar deneyin.' });
+
   } catch (err) {
     console.error('💥 Bulmaca oluşturulurken hata:', err);
     return res.status(500).json({ error: 'Bulmaca oluşturulurken bir hata oluştu.' });
