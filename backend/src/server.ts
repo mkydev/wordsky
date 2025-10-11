@@ -74,22 +74,20 @@ function createPuzzle(difficulty: number): { letters: string[], words: string[] 
       const letters = [...baseWord];
       const constructibleSet = generateWordsFromLetters(letters, allWordsSet, difficulty);
 
-      // --- YENİ EKLENEN FİLTRELEME MANTIĞI ---
-      const initialWords = Array.from(constructibleSet);
-      // Bir kelimenin, listedeki başka (daha uzun) bir kelimenin içinde geçmesini engelle
-      const wordsArray = initialWords.filter(word => {
-          return !initialWords.some(otherWord => otherWord.includes(word) && otherWord !== word);
-      });
-      // --- FİLTRELEME SONU ---
-
-      // Kelime sayısı uygun aralıkta mı diye kontrol et (Filtrelenmiş dizi üzerinden)
-      if (wordsArray.length >= MIN_WORD_COUNT && wordsArray.length <= MAX_WORD_COUNT) {
+      // Kelime sayısı uygun aralıkta mı diye kontrol et
+      if (constructibleSet.size >= MIN_WORD_COUNT && constructibleSet.size <= MAX_WORD_COUNT) {
         
+        const wordsArray = Array.from(constructibleSet);
+        
+        // --- YENİ KURAL KONTROLÜ ---
+        // 3 harfli kelimelerin sayısını bul
         const threeLetterWordCount = wordsArray.filter(w => w.length === 3).length;
 
+        // Eğer 3 harfli kelime sayısı 2'den fazlaysa, bu bulmacayı atla ve yeni denemeye geç
         if (threeLetterWordCount > 2) {
-          continue; 
+          continue; // Bu denemeyi geçersiz say ve döngünün başına dön
         }
+        // --- KONTROL SONU ---
 
         const finalWords = wordsArray.sort((a, b) => a.length - b.length || a.localeCompare(b));
         

@@ -376,14 +376,34 @@ header { display: flex; align-items: center; justify-content: center; padding: 0
 .back-button { background: var(--button-bg); border: 1px solid var(--button-border); color: var(--text-color); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; cursor: pointer; transition: all 0.2s ease; position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); }
 .header-actions { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 0.5rem; }
 .header-btn { background: var(--button-bg); border: 1px solid var(--button-border); color: var(--text-color); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; cursor: pointer; transition: all 0.2s ease; }
-.theme-selector-popover { position: absolute; top: 50px; right: 0; background-color: var(--background-color); border: 1px solid var(--button-border); border-radius: 8px; padding: 0.5rem; z-index: 10; }
+.theme-switcher-container { position: relative; } /* Konumlandırma için eklendi */
+.theme-selector-popover { position: absolute; top: 50px; right: 0; background-color: var(--background-color); border: 1px solid var(--button-border); border-radius: 8px; padding: 0.5rem; z-index: 10; display: flex; flex-direction: column; gap: 0.5rem; } /* Flex özellikleri eklendi */
+.theme-option {
+  display: flex; /* DÜZELTME: Hizalama için flex eklendi */
+  align-items: center; /* DÜZELTME: Dikeyde ortalamak için eklendi */
+  gap: 0.75rem; /* DÜZELTME: Renk noktası ve metin arasına boşluk eklendi */
+  background: none;
+  border: none;
+  color: var(--text-color);
+  padding: 0.5rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+.theme-option:hover { background-color: var(--button-hover-bg); }
+.theme-color-dot {
+  width: 16px; /* DÜZELTME: Boyut eklendi */
+  height: 16px; /* DÜZELTME: Boyut eklendi */
+  border-radius: 50%;
+  border: 1px solid var(--button-border); /* DÜZELTME: Sınır eklendi */
+}
 h1 { font-size: clamp(1.1rem, 4.5vw, 1.8rem); margin: 0; text-align: center; flex-grow: 1; padding: 0 110px; box-sizing: border-box; }
 .level-selector { flex: 1; display: flex; justify-content: center; align-items: center; flex-direction: column; gap: 2rem; width: 100%; max-width: 800px; margin: 0 auto; padding: 1rem; }
 .difficulty-selector, .multiplayer-menu { text-align: center; width: 100%; }
 .difficulty-selector h2, .multiplayer-menu h2 { color: var(--text-color); margin-bottom: 1.5rem; font-size: clamp(1.2rem, 4vw, 1.8rem); }
 .difficulty-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
 
-/* DÜZELTME: Animasyon stilleri geri eklendi */
 .difficulty-btn {
   background: var(--button-bg);
   border: 2px solid var(--button-border);
