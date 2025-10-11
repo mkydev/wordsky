@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import LetterCircle from './components/LetterCircle.vue';
 import WordDisplay from './components/WordDisplay.vue';
 import { useCrossword } from './composables/useCrossword';
@@ -67,12 +67,60 @@ function shuffleLetters() {
     [letters.value[i], letters.value[j]] = [letters.value[j]!, letters.value[i]!];
   }
 }
+
+const themes = [
+  { name: 'Default', class: 'default', color: '#2c3e50' },
+  { name: 'Mor', class: 'theme-purple', color: '#4a148c' },
+  { name: 'Turuncu', class: 'theme-orange', color: '#e65100' }
+];
+const currentThemeIndex = ref(0);
+const currentTheme = computed(() => themes[currentThemeIndex.value]!.class);
+const showThemeSelector = ref(false);
+
+function toggleThemeSelector() {
+  showThemeSelector.value = !showThemeSelector.value;
+}
+
+function selectTheme(index: number) {
+  currentThemeIndex.value = index;
+  showThemeSelector.value = false;
+}
+
+watch(currentTheme, (newTheme, oldTheme) => {
+  if (oldTheme && oldTheme !== 'default') {
+    document.body.classList.remove(oldTheme);
+  }
+  if (newTheme && newTheme !== 'default') {
+    document.body.classList.add(newTheme);
+  }
+}, { immediate: true });
+
+onMounted(() => {
+  const initialTheme = currentTheme.value;
+  if (initialTheme && initialTheme !== 'default') {
+    document.body.classList.add(initialTheme);
+  }
+});
 </script>
 
 <template>
-  <main>
+  <main :class="currentTheme">
     <header>
       <h1>Word of YK</h1>
+      <div class="theme-switcher-container">
+        <button @click="toggleThemeSelector" class="theme-switcher">🎨</button>
+        <div v-if="showThemeSelector" class="theme-selector-popover">
+          <button
+            v-for="(theme, index) in themes"
+            :key="theme.class"
+            @click="selectTheme(index)"
+            class="theme-option"
+          >
+            <span class="theme-color-dot" :style="{ backgroundColor: theme.color }"></span>
+            <span>{{ theme.name }}</span>
+          </button>
+        </div>
+      </div>
       <button v-if="gameStarted" @click="goBackToDifficultySelection" class="back-button">
         ←
       </button>
@@ -131,11 +179,12 @@ main {
   height: 100vh; /* Tam ekran yüksekliği */
   max-height: 100vh; /* Safari gibi tarayıcılarda fazladan kaymayı önle */
   font-family: sans-serif;
-  background-color: #2c3e50;
-  color: white;
+  background-color: var(--background-color);
+  color: var(--text-color);
   box-sizing: border-box;
   padding: 0 1rem;
   overflow: hidden; /* Ana kaydırma çubuğunu gizle */
+  transition: background-color 0.3s, color 0.3s;
 }
 
 header {
@@ -154,9 +203,9 @@ header {
   left: 1rem; /* Sol kenara sabitle */
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
+  background: var(--button-bg);
+  border: 1px solid var(--button-border);
+  color: var(--text-color);
   border-radius: 50%; /* Daire şekli */
   width: 40px; /* Sabit genişlik */
   height: 40px; /* Sabit yükseklik */
@@ -168,17 +217,79 @@ header {
   transition: all 0.2s ease;
 }
 
+.theme-switcher-container {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.theme-switcher {
+  background: var(--button-bg);
+  border: 1px solid var(--button-border);
+  color: var(--text-color);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.theme-selector-popover {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  background-color: var(--background-color);
+  border: 1px solid var(--button-border);
+  border-radius: 8px;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 10;
+}
+
+.theme-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: none;
+  border: none;
+  color: var(--text-color);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font-size: 1rem;
+}
+
+.theme-option:hover {
+  background-color: var(--button-hover-bg);
+}
+
+.theme-color-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--button-border);
+}
+
 h1 {
   font-size: clamp(1.2rem, 5vw, 2rem);
   margin: 0;
   text-align: center;
   flex-grow: 1;
-  padding: 0 50px; /* Butonun kaplayabileceği alan kadar boşluk bırak */
+  padding: 0 100px; /* Butonların kaplayabileceği alan kadar boşluk bırak */
   box-sizing: border-box;
 }
 
-.back-button:hover {
-  background: rgba(255, 255, 255, 0.2);
+.back-button:hover, .theme-switcher:hover {
+  background: var(--button-hover-bg);
 }
 
 .level-selector {
@@ -197,7 +308,7 @@ h1 {
 }
 
 .difficulty-selector h2 {
-  color: #ecf0f1;
+  color: var(--text-color);
   margin-bottom: 2rem;
   font-size: clamp(1.2rem, 4vw, 1.8rem);
 }
@@ -210,9 +321,9 @@ h1 {
 }
 
 .difficulty-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  color: white;
+  background: var(--button-bg);
+  border: 2px solid var(--button-border);
+  color: var(--text-color);
   padding: 1.5rem 2rem;
   border-radius: 12px;
   cursor: pointer;
@@ -223,7 +334,7 @@ h1 {
 }
 
 .difficulty-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--button-hover-bg);
   transform: translateY(-2px);
 }
 
@@ -247,22 +358,23 @@ h1 {
 }
 
 .next-btn {
-  background-color: #42b883;
+  background-color: var(--success-color);
   color: white;
 }
 
 .next-btn:hover {
-  background-color: #3aa876;
+  opacity: 0.9;
   transform: translateY(-1px);
 }
 
 .restart-btn {
-  background-color: #34495e;
-  color: white;
+  background-color: var(--button-bg);
+  color: var(--text-color);
+  border: 1px solid var(--button-border);
 }
 
 .restart-btn:hover {
-  background-color: #2c3e50;
+  background-color: var(--button-hover-bg);
 }
 
 h1 {
@@ -279,7 +391,7 @@ h1 {
 }
 
 .error {
-  color: #e74c3c;
+  color: var(--error-color);
 }
 
 .game-container {
@@ -321,7 +433,7 @@ h1 {
 
 .success-message h2 {
   font-size: 1.8rem;
-  color: #42b883;
+  color: var(--success-color);
 }
 
 /* Orta ve büyük ekranlar için (tablet/desktop) */
