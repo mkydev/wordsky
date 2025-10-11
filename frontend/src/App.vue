@@ -70,8 +70,8 @@ function shuffleLetters() {
 
 const themes = [
   { name: 'Default', class: 'default', color: '#2c3e50' },
-  { name: 'Mor', class: 'theme-purple', color: '#4a148c' },
-  { name: 'Turuncu', class: 'theme-orange', color: '#e65100' }
+  { name: 'Purple', class: 'theme-purple', color: '#4a148c' },
+  { name: 'Orange', class: 'theme-orange', color: '#e65100' }
 ];
 const currentThemeIndex = ref(0);
 const currentTheme = computed(() => themes[currentThemeIndex.value]!.class);
@@ -92,6 +92,16 @@ watch(currentTheme, (newTheme, oldTheme) => {
   }
   if (newTheme && newTheme !== 'default') {
     document.body.classList.add(newTheme);
+  }
+}, { immediate: true });
+
+watch(currentThemeIndex, (newIndex) => {
+  const theme = themes[newIndex];
+  if (theme) {
+    const meta = document.querySelector('#theme-color-meta');
+    if (meta) {
+      meta.setAttribute('content', theme.color);
+    }
   }
 }, { immediate: true });
 
