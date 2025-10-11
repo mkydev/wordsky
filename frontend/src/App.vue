@@ -4,7 +4,7 @@ import LetterCircle from './components/LetterCircle.vue';
 import WordDisplay from './components/WordDisplay.vue';
 import { useCrossword } from './composables/useCrossword';
 
-const API_BASE_URL = '/api/v1';
+const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 const apiWords = ref<string[]>([]);
 const letters = ref<string[]>([]);
@@ -27,7 +27,7 @@ async function createNewPuzzle(diff: 4 | 5 | 6) {
   foundWords.value = [];
   apiWords.value = [];
   try {
-    const response = await fetch(`${API_BASE_URL}/puzzles/random?difficulty=${diff}`);
+    const response = await fetch(`${apiUrl}/api/v1/puzzles/random?difficulty${diff}`);
     if (!response.ok) {
       throw new Error('Bulmaca oluşturulurken bir hata oluştu.');
     }
