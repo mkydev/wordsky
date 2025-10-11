@@ -1,33 +1,35 @@
 <template>
-  <div class="selection-display">
-    {{ currentWord }}
-  </div>
-  <div
-    class="letter-circle-container"
-    @mouseup="endSelection"
-    @touchend="endSelection"
-    @mouseleave="endSelection"
-    @touchmove="handleTouchMove"
-  >
-    <div
-      v-for="(letter, index) in letters"
-      :key="index"
-      class="letter"
-      :class="{ selected: selectedIndices.includes(index) }"
-      :style="getLetterStyle(index)"
-      :data-letter="letter"
-      :data-index="index"
-      @mousedown="startSelection(letter, index)"
-      @touchstart.prevent="startSelection(letter, index)"
-      @mouseover="handleSelection(letter, index)"
-    >
-      {{ letter }}
+  <div class="letter-circle-wrapper">
+    <div class="selection-display">
+      {{ currentWord || '\u00A0' }}
     </div>
-    <button class="shuffle-button" @click="$emit('shuffle')">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="16 16 21 16 21 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
-    </button>
-    <div class="lines-container">
-        <div v-for="line in lines" :key="line.key" class="line" :style="line.style"></div>
+    <div
+      class="letter-circle-container"
+      @mouseup="endSelection"
+      @touchend="endSelection"
+      @mouseleave="endSelection"
+      @touchmove="handleTouchMove"
+    >
+      <div
+        v-for="(letter, index) in letters"
+        :key="index"
+        class="letter"
+        :class="{ selected: selectedIndices.includes(index) }"
+        :style="getLetterStyle(index)"
+        :data-letter="letter"
+        :data-index="index"
+        @mousedown="startSelection(letter, index)"
+        @touchstart.prevent="startSelection(letter, index)"
+        @mouseover="handleSelection(letter, index)"
+      >
+        {{ letter }}
+      </div>
+      <button class="shuffle-button" @click="$emit('shuffle')" title="Harfleri Karıştır">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="16 16 21 16 21 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
+      </button>
+      <div class="lines-container">
+          <div v-for="line in lines" :key="line.key" class="line" :style="line.style"></div>
+      </div>
     </div>
   </div>
 </template>
@@ -42,21 +44,20 @@ const { letters } = toRefs(props);
 
 const containerSize = computed(() => {
     const vw = Math.min(windowSize.value.width, windowSize.value.height);
-    if (vw <= 480) return 260;
-    if (vw <= 600) return 300;
-    if (vw <= 768) return 340;
-    return 380;
+    if (vw <= 480) return 240;
+    if (vw <= 600) return 280;
+    if (vw <= 768) return 300;
+    return 340;
 });
 
 const radius = computed(() => {
     const vw = Math.min(windowSize.value.width, windowSize.value.height);
-    if (vw <= 480) return 100;
-    if (vw <= 600) return 115;
-    if (vw <= 768) return 130;
-    return 145;
+    if (vw <= 480) return 90;
+    if (vw <= 600) return 105;
+    if (vw <= 768) return 115;
+    return 130;
 });
 
-// Reactive window size tracking for better mobile support
 const windowSize = ref({ width: window.innerWidth, height: window.innerHeight });
 
 const updateWindowSize = () => {
@@ -64,8 +65,6 @@ const updateWindowSize = () => {
 };
 
 onMounted(() => {
-    console.log("LetterCircle: mounted");
-    console.log("LetterCircle: letters prop", props.letters);
     window.addEventListener('resize', updateWindowSize);
     window.addEventListener('orientationchange', updateWindowSize);
 });
@@ -76,16 +75,14 @@ onUnmounted(() => {
 });
 
 const getLetterCoords = (index: number) => {
-    const angle = (index / letters.value.length) * 2 * Math.PI - Math.PI / 2; // Start from top
+    const angle = (index / letters.value.length) * 2 * Math.PI - Math.PI / 2;
     const currentRadius = radius.value;
     const x = Math.cos(angle) * currentRadius;
     const y = Math.sin(angle) * currentRadius;
     return { x, y };
 }
 
-// Update computed values to be reactive to window size changes
 watch(windowSize, () => {
-    // Force reactivity update
 }, { deep: true });
 
 const getLetterStyle = (index: number) => {
@@ -173,101 +170,124 @@ function endSelection() {
 </script>
 
 <style scoped>
+.letter-circle-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
 .selection-display {
-    font-size: clamp(1.4rem, 4vw, 1.8rem); /* Boyutu biraz küçült */
+    font-size: clamp(1.2rem, 3.5vw, 1.6rem);
     font-weight: bold;
-    margin-bottom: 0.5rem; /* Boşluğu azalt */
-    height: clamp(1.8rem, 4.5vw, 2.5rem); /* Yüksekliği azalt */
+    height: clamp(2.2rem, 4vw, 3rem);
     text-align: center;
     color: #42b883;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(66, 184, 131, 0.1);
-    border-radius: 8px;
-    padding: 0.5rem 1rem;
-    min-width: 120px;
-    border: 2px solid rgba(66, 184, 131, 0.2);
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    background: rgba(66, 184, 131, 0.12);
+    border-radius: 10px;
+    padding: 0.4rem 1.2rem;
+    min-width: 140px;
+    max-width: 280px;
+    border: 2px solid rgba(66, 184, 131, 0.25);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(4px);
+    box-shadow: 0 2px 8px rgba(66, 184, 131, 0.15);
+    letter-spacing: 0.5px;
 }
 
 .letter-circle-container {
-  width: clamp(260px, 80vw, 400px); /* Daha büyük */
-  height: clamp(260px, 80vw, 400px);
-  max-width: min(90vw, 90vh);
-  max-height: min(90vw, 90vh);
+  width: clamp(240px, 70vw, 360px);
+  height: clamp(240px, 70vw, 360px);
+  max-width: min(85vw, 85vh);
+  max-height: min(85vw, 85vh);
   border-radius: 50%;
   position: relative;
-  margin: 0.5rem auto; /* Margin azaltıldı */
+  margin: 0 auto;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: rgba(255, 255, 255, 0.05);
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  background: radial-gradient(circle, rgba(66, 184, 131, 0.05) 0%, rgba(255, 255, 255, 0.02) 70%);
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .letter {
   position: absolute;
-  width: clamp(42px, 10vw, 60px); /* Daha büyük harfler */
-  height: clamp(42px, 10vw, 60px);
+  width: clamp(40px, 9vw, 56px);
+  height: clamp(40px, 9vw, 56px);
   border-radius: 50%;
-  background-color: #34495e;
-  border: 3px solid #ecf0f1;
+  background: linear-gradient(145deg, #3d5a70, #2c3e50);
+  border: 2.5px solid #ecf0f1;
   color: #ecf0f1;
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: clamp(1.2rem, 4vw, 2rem); /* Daha büyük font */
+  font-size: clamp(1.1rem, 3.5vw, 1.8rem);
   font-weight: bold;
   cursor: pointer;
   user-select: none;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1;
   touch-action: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
   transform-origin: center;
 }
 
 .letter:hover {
-  background-color: #2c3e50;
-  transform: scale(1.05);
+  background: linear-gradient(145deg, #455f77, #34495e);
+  transform: scale(1.08);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  border-color: #fff;
 }
 
 .letter.selected {
-  background-color: #42b883;
-  border-color: #42b883;
+  background: linear-gradient(145deg, #4cd49a, #42b883);
+  border-color: #fff;
   color: white;
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(66, 184, 131, 0.4);
+  transform: scale(1.15);
+  box-shadow: 0 5px 16px rgba(66, 184, 131, 0.5);
+  z-index: 2;
 }
 
 .shuffle-button {
     position: absolute;
-    width: clamp(40px, 8vw, 50px);
-    height: clamp(40px, 8vw, 50px);
+    width: clamp(38px, 7.5vw, 48px);
+    height: clamp(38px, 7.5vw, 48px);
     border-radius: 50%;
-    background-color: rgba(52, 73, 94, 0.8);
+    background: linear-gradient(145deg, #3d5a70, #2c3e50);
     color: #ecf0f1;
-    border: 2px solid rgba(236, 240, 241, 0.3);
+    border: 2px solid rgba(236, 240, 241, 0.35);
     cursor: pointer;
     display: flex;
     justify-content: center;
     align-items: center;
-    opacity: 0.8;
     z-index: 2;
-    transition: all 0.2s ease;
-    backdrop-filter: blur(4px);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(6px);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
 }
 
 .shuffle-button:hover {
-    opacity: 1;
-    background-color: rgba(52, 73, 94, 0.9);
-    transform: scale(1.05);
+    background: linear-gradient(145deg, #455f77, #34495e);
+    transform: scale(1.08) rotate(180deg);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+    border-color: #fff;
+}
+
+.shuffle-button:active {
+    transform: scale(0.95) rotate(180deg);
 }
 
 .shuffle-button svg {
-    width: clamp(20px, 4vw, 26px);
-    height: clamp(20px, 4vw, 26px);
+    width: clamp(19px, 3.8vw, 24px);
+    height: clamp(19px, 3.8vw, 24px);
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
 }
 
 .lines-container {
@@ -276,6 +296,7 @@ function endSelection() {
     height: 100%;
     top: 0;
     left: 0;
+    pointer-events: none;
 }
 
 .line {
@@ -285,7 +306,20 @@ function endSelection() {
     transform-origin: 0 50%;
     z-index: 0;
     border-radius: 2px;
-    box-shadow: 0 2px 4px rgba(66, 184, 131, 0.3);
+    box-shadow: 0 2px 6px rgba(66, 184, 131, 0.4);
 }
 
+/* Desktop için optimize edilmiş boyutlar */
+@media (min-width: 769px) {
+  .letter-circle-container {
+    width: clamp(280px, 40vw, 380px);
+    height: clamp(280px, 40vw, 380px);
+  }
+
+  .letter {
+    width: clamp(48px, 6vw, 60px);
+    height: clamp(48px, 6vw, 60px);
+    font-size: clamp(1.4rem, 2.5vw, 2rem);
+  }
+}
 </style>

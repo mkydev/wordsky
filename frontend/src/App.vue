@@ -4,7 +4,7 @@ import LetterCircle from './components/LetterCircle.vue';
 import WordDisplay from './components/WordDisplay.vue';
 import { useCrossword } from './composables/useCrossword';
 
-const API_BASE_URL = 'http://localhost:3000/api/v1';
+const API_BASE_URL = '/api/v1';
 
 const apiWords = ref<string[]>([]);
 const letters = ref<string[]>([]);
@@ -287,29 +287,31 @@ h1 {
   flex-direction: column;
   flex: 1;
   align-items: center;
-  justify-content: space-around; /* Dikeyde boşlukları dağıt */
-  padding: 0 0.5rem;
+  justify-content: center;
+  gap: 1rem;
+  padding: 0.5rem;
   min-height: 0;
+  overflow: hidden;
 }
 
 .word-display-section {
-  flex-grow: 1; /* Boş alanı doldur */
-  flex-shrink: 1;
+  flex: 0 1 auto;
   width: 100%;
+  max-height: 45vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 0; /* Küçülmesine izin ver */
+  overflow: hidden;
 }
 
 .letter-circle-section {
-  flex-shrink: 0; /* Küçülmesin */
+  flex: 0 0 auto;
   width: 100%;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 1rem 0; /* Dikey boşluk */
+  gap: 0.5rem;
 }
 
 .success-message {

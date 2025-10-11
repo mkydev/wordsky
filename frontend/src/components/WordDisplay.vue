@@ -61,7 +61,7 @@ const isFound = (row: number, col: number) => {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 1rem; /* Boşluk eklendi */
+  padding: 0.5rem;
 }
 
 .grid-wrapper {
@@ -69,18 +69,21 @@ const isFound = (row: number, col: number) => {
   justify-content: center;
   align-items: center;
   width: 100%;
-  height: auto;
+  height: 100%;
   max-width: 100%;
-  max-height: none;
-  padding: 12px 8px;
-  background: transparent;
-  border-radius: 8px;
+  max-height: 100%;
+  overflow: auto;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .grid-container {
-  display: inline-grid; /* Satır içi grid */
+  display: inline-grid;
   grid-auto-flow: row;
-  gap: 3px;
+  gap: clamp(2px, 0.5vw, 4px);
+  padding: clamp(4px, 1vw, 8px);
 }
 
 .grid-cell {
@@ -93,9 +96,9 @@ const isFound = (row: number, col: number) => {
   color: #2c3e50;
   transition: all 0.3s ease;
   position: relative;
-  width: clamp(20px, 5vw, 32px);
-  height: clamp(20px, 5vw, 32px);
-  font-size: clamp(10px, 2.5vw, 16px);
+  width: clamp(24px, 5.5vw, 40px);
+  height: clamp(24px, 5.5vw, 40px);
+  font-size: clamp(12px, 3vw, 20px);
 }
 
 .grid-cell.empty {
@@ -106,10 +109,10 @@ const isFound = (row: number, col: number) => {
 .empty-box {
   width: 100%;
   height: 100%;
-  background-color: #ecf0f1;
-  outline: 1px solid rgba(0,0,0,0.08);
+  background-color: rgba(236, 240, 241, 0.15);
+  outline: 1px solid rgba(236, 240, 241, 0.3);
   border-radius: 4px;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
 .revealed-letter {
@@ -120,11 +123,27 @@ const isFound = (row: number, col: number) => {
   justify-content: center;
   font-size: inherit;
   font-weight: bold;
-  background-color: #42b883;
+  background: linear-gradient(135deg, #42b883 0%, #35a373 100%);
   border-radius: 4px;
   color: white;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  outline: 1px solid rgba(0,0,0,0.08);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  outline: 1px solid rgba(66, 184, 131, 0.4);
+  box-shadow: 0 2px 4px rgba(66, 184, 131, 0.2);
+  animation: revealPop 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes revealPop {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .loading-state {
@@ -132,5 +151,18 @@ const isFound = (row: number, col: number) => {
   padding: 2rem;
   color: #ecf0f1;
   font-size: 1.2rem;
+}
+
+/* Desktop için optimize edilmiş boyutlar */
+@media (min-width: 769px) {
+  .grid-cell {
+    width: clamp(32px, 3vw, 48px);
+    height: clamp(32px, 3vw, 48px);
+    font-size: clamp(16px, 2vw, 24px);
+  }
+
+  .grid-container {
+    gap: clamp(3px, 0.6vw, 6px);
+  }
 }
 </style>

@@ -5,6 +5,7 @@ import { turkishWords } from './data/turkishWords';
 const app = express();
 app.use(cors());
 const port = 3000;
+const HOST = '0.0.0.0';
 
 // 🔹 Harf normalize fonksiyonu
 function normalize(word: string) {
@@ -108,6 +109,6 @@ app.get('/api/v1/puzzles/random', (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`✅ Backend http://localhost:${port} adresinde çalışıyor.`);
+app.listen(port, HOST, () => {
+  console.log(`✅ Backend http://localhost:${HOST}:${port} adresinde çalışıyor.`);
 });
