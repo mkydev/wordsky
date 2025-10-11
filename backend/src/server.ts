@@ -49,7 +49,7 @@ function generateWordsFromLetters(
   return foundWords;
 }
 
-// ------------------- Bulmaca Oluşturma Fonksiyonu -------------------
+// ------------------- Bulmaca Oluşturma Fonksiyonu (DÜZENLENDİ) -------------------
 const allWordsSet = new Set(
     Object.values(turkishWords)
       .flat()
@@ -74,8 +74,22 @@ function createPuzzle(difficulty: number): { letters: string[], words: string[] 
       const letters = [...baseWord];
       const constructibleSet = generateWordsFromLetters(letters, allWordsSet, difficulty);
 
+      // Kelime sayısı uygun aralıkta mı diye kontrol et
       if (constructibleSet.size >= MIN_WORD_COUNT && constructibleSet.size <= MAX_WORD_COUNT) {
-        const finalWords = Array.from(constructibleSet).sort((a, b) => a.length - b.length || a.localeCompare(b));
+        
+        const wordsArray = Array.from(constructibleSet);
+        
+        // --- YENİ KURAL KONTROLÜ ---
+        // 3 harfli kelimelerin sayısını bul
+        const threeLetterWordCount = wordsArray.filter(w => w.length === 3).length;
+
+        // Eğer 3 harfli kelime sayısı 2'den fazlaysa, bu bulmacayı atla ve yeni denemeye geç
+        if (threeLetterWordCount > 2) {
+          continue; // Bu denemeyi geçersiz say ve döngünün başına dön
+        }
+        // --- KONTROL SONU ---
+
+        const finalWords = wordsArray.sort((a, b) => a.length - b.length || a.localeCompare(b));
         
         console.log(`✅ Bulmaca bulundu (attempt ${attempt + 1})`);
         console.log(`Harfler: ${letters.join(', ')}`);
@@ -86,7 +100,7 @@ function createPuzzle(difficulty: number): { letters: string[], words: string[] 
       }
     }
 
-    console.error(`❌ Hiç uygun bulmaca bulunamadı (${MIN_WORD_COUNT}-${MAX_WORD_COUNT} kelime).`);
+    console.error(`❌ Hiç uygun bulmaca bulunamadı (${MIN_WORD_COUNT}-${MAX_WORD_COUNT} kelime ve en fazla 2 adet 3 harfli kelime).`);
     return null;
 }
 
@@ -144,12 +158,13 @@ io.on('connection', (socket) => {
 
   socket.on('wordFound', ({ roomId, word }) => {
     const room = gameRooms[roomId];
-    if (!room || !room.puzzle.words.includes(word) || room.foundWords[word]) {
+    const normalizedWord = normalize(word); // Kelimeyi normalize et
+    if (!room || !room.puzzle.words.includes(normalizedWord) || room.foundWords[normalizedWord]) {
       return;
     }
 
-    room.players[socket.id].score += word.length;
-    room.foundWords[word] = socket.id;
+    room.players[socket.id].score += normalizedWord.length;
+    room.foundWords[normalizedWord] = socket.id;
 
     const allWordsFound = Object.keys(room.foundWords).length === room.puzzle.words.length;
 
