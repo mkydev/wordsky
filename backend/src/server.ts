@@ -58,8 +58,8 @@ const allWordsSet = new Set(
 );
 
 function createPuzzle(difficulty: number): { letters: string[], words: string[] } | null {
-    const MIN_WORD_COUNT = 5;
-    const MAX_WORD_COUNT = 10;
+    const MIN_WORD_COUNT = 4;
+    const MAX_WORD_COUNT = 8;
     const MAX_ATTEMPTS = 500;
 
     const wordsByLength = Array.from(allWordsSet).filter(w => w.length === difficulty);

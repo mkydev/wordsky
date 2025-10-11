@@ -336,7 +336,7 @@ watch(currentThemeIndex, (newIndex) => {
                 <h3>Oda Bilgisi</h3>
                 <p>Bu oda adını arkadaşlarınla paylaşarak odaya davet et.</p>
                 <div class="room-id-container" style="display: flex; align-items: center; gap: 0.8rem; margin-top: 0.5rem;">
-                  <strong class="room-id" style="color: beige;">{{ roomId }}</strong>
+                  <strong class="room-id">{{ roomId }}</strong>
                   <button @click="copyRoomId" class="copy-btn">
                     {{ copied ? 'Kopyalandı!' : 'Kopyala' }}
                   </button>
