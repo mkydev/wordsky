@@ -17,7 +17,7 @@ const io = new Server(httpServer, {
 const port = 3000;
 const HOST = '0.0.0.0';
 
-// ------------------- Helper Fonksiyonları (Değişiklik yok) -------------------
+// ------------------- Helper Fonksiyonları -------------------
 function normalize(word: string) {
   return word
     .trim()
@@ -49,7 +49,7 @@ function generateWordsFromLetters(
   return foundWords;
 }
 
-// ------------------- Düzeltilmiş Bulmaca Oluşturma Fonksiyonu -------------------
+// ------------------- Bulmaca Oluşturma Fonksiyonu -------------------
 const allWordsSet = new Set(
     Object.values(turkishWords)
       .flat()
@@ -58,8 +58,8 @@ const allWordsSet = new Set(
 );
 
 function createPuzzle(difficulty: number): { letters: string[], words: string[] } | null {
-    const MIN_WORD_COUNT = 4;
-    const MAX_WORD_COUNT = 8;
+    const MIN_WORD_COUNT = 5;
+    const MAX_WORD_COUNT = 10;
     const MAX_ATTEMPTS = 500;
 
     const wordsByLength = Array.from(allWordsSet).filter(w => w.length === difficulty);
@@ -76,7 +76,8 @@ function createPuzzle(difficulty: number): { letters: string[], words: string[] 
 
       if (constructibleSet.size >= MIN_WORD_COUNT && constructibleSet.size <= MAX_WORD_COUNT) {
         const finalWords = Array.from(constructibleSet).sort((a, b) => a.length - b.length || a.localeCompare(b));
-        console.log(`✅ Multiplayer için bulmaca bulundu (attempt ${attempt + 1})`);
+        
+        console.log(`✅ Bulmaca bulundu (attempt ${attempt + 1})`);
         console.log(`Harfler: ${letters.join(', ')}`);
         console.log(`Kelimeler (${finalWords.length}): ${finalWords.join(', ')}`);
         console.log('-----------------------------');
@@ -86,7 +87,7 @@ function createPuzzle(difficulty: number): { letters: string[], words: string[] 
     }
 
     console.error(`❌ Hiç uygun bulmaca bulunamadı (${MIN_WORD_COUNT}-${MAX_WORD_COUNT} kelime).`);
-    return null; // Başarılı bir bulmaca bulunamazsa null döndür
+    return null;
 }
 
 
@@ -96,44 +97,44 @@ const gameRooms: { [key: string]: any } = {};
 io.on('connection', (socket) => {
   console.log(`✨ Yeni bir kullanıcı bağlandı: ${socket.id}`);
 
-  socket.on('createRoom', ({ difficulty }) => {
-    const puzzle = createPuzzle(difficulty);
+  socket.on('createRoom', ({ difficulty, roomName, playerName }) => {
+    if (gameRooms[roomName]) {
+      socket.emit('error', { message: `"${roomName}" isminde bir oda zaten mevcut.` });
+      return;
+    }
 
-    if (!puzzle) { // Eğer bulmaca oluşturulamazsa, istemciye hata gönder
+    const puzzle = createPuzzle(difficulty);
+    if (!puzzle) {
       socket.emit('error', { message: 'Uygun bir bulmaca oluşturulamadı, lütfen tekrar deneyin.' });
       return;
     }
 
-    const roomId = `room-${Math.random().toString(36).substr(2, 5)}`;
-    gameRooms[roomId] = {
+    gameRooms[roomName] = {
       puzzle,
-      players: { [socket.id]: { score: 0 } },
+      players: { [socket.id]: { name: playerName, score: 0 } },
       foundWords: {}
     };
 
-    socket.join(roomId);
-    console.log(`🚪 ${socket.id} kullanıcısı ${roomId} odasını oluşturdu.`);
-    socket.emit('roomCreated', { roomId, puzzle, players: gameRooms[roomId].players });
+    socket.join(roomName);
+    console.log(`🚪 ${playerName} (${socket.id}) kullanıcısı "${roomName}" odasını oluşturdu.`);
+    socket.emit('roomCreated', { roomId: roomName, puzzle, players: gameRooms[roomName].players });
   });
 
-  socket.on('joinRoom', ({ roomId }) => {
+  socket.on('joinRoom', ({ roomId, playerName }) => {
     const room = gameRooms[roomId];
     if (room) {
       socket.join(roomId);
-      room.players[socket.id] = { score: 0 };
-      console.log(`➡️ ${socket.id} kullanıcısı ${roomId} odasına katıldı.`);
+      room.players[socket.id] = { name: playerName, score: 0 };
+      console.log(`➡️ ${playerName} (${socket.id}) kullanıcısı "${roomId}" odasına katıldı.`);
       
-      // Odaya katılan oyuncuya oda ID'sini onayla
       socket.emit('joinSuccess', { roomId });
 
-      // Odaya yeni katılan oyuncuya mevcut oyun durumunu gönder
       socket.emit('gameUpdate', {
           puzzle: room.puzzle,
           players: room.players,
           foundWords: room.foundWords
       });
 
-      // Odadaki diğer oyunculara yeni bir oyuncunun katıldığını haber ver
       socket.to(roomId).emit('playerJoined', { players: room.players });
     } else {
       socket.emit('error', { message: 'Oda bulunamadı.' });
@@ -157,7 +158,10 @@ io.on('connection', (socket) => {
     console.log(`👋 Kullanıcı ayrıldı: ${socket.id}`);
     for (const roomId in gameRooms) {
       if (gameRooms[roomId].players[socket.id]) {
+        const playerName = gameRooms[roomId].players[socket.id].name;
         delete gameRooms[roomId].players[socket.id];
+        console.log(`(i) ${playerName} kullanıcısı "${roomId}" odasından ayrıldı.`);
+
         io.to(roomId).emit('playerLeft', { players: gameRooms[roomId].players });
         if (Object.keys(gameRooms[roomId].players).length === 0) {
           delete gameRooms[roomId];
@@ -169,7 +173,7 @@ io.on('connection', (socket) => {
   });
 });
 
-// Tek oyunculu mod için REST endpoint'i (değişiklik yok)
+// Tek oyunculu mod için REST endpoint'i
 app.get('/api/v1/puzzles/random', (req, res) => {
     try {
       const difficulty = req.query.difficulty ? parseInt(req.query.difficulty as string, 10) : 4;
