@@ -73,10 +73,10 @@ const isFound = (row: number, col: number) => {
   max-width: 100%;
   max-height: 100%;
   overflow: auto;
-  padding: 0.5rem;
+  padding: 0.1rem;
   background: rgba(255, 255, 255, 0.03);
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border:2px solid rgba(255, 255, 255, 0.08);
 }
 
 .grid-container {

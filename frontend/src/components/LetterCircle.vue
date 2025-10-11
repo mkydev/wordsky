@@ -197,7 +197,7 @@ function endSelection() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.30rem;
   width: 100%;
   max-width: 420px;
   margin: 0 auto;
@@ -213,7 +213,7 @@ function endSelection() {
     align-items: center;
     justify-content: center;
     background: rgba(66, 184, 131, 0.12);
-    border-radius: 10px;
+    border-radius: 8px;
     padding: 0.4rem 1.2rem;
     min-width: 140px;
     max-width: 280px;
@@ -227,9 +227,9 @@ function endSelection() {
 .letter-circle-container {
   width: clamp(240px, 70vw, 360px);
   height: clamp(240px, 70vw, 360px);
-  max-width: min(85vw, 85vh);
-  max-height: min(85vw, 85vh);
-  border-radius: 50%;
+  max-width: min(70vw, 70vh);
+  max-height: min(70vw, 70vh);
+  border-radius: 60%;
   position: relative;
   margin: 0 auto;
   display: flex;
@@ -242,16 +242,16 @@ function endSelection() {
 
 .letter {
   position: absolute;
-  width: clamp(40px, 9vw, 56px);
-  height: clamp(40px, 9vw, 56px);
+  width: clamp(50px, 9vw, 56px);
+  height: clamp(50px, 9vw, 56px);
   border-radius: 50%;
   background: linear-gradient(145deg, #3d5a70, #2c3e50);
-  border: 2.5px solid #ecf0f1;
+  border: 1.5px solid #ecf0f1;
   color: #ecf0f1;
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: clamp(1.1rem, 3.5vw, 1.8rem);
+  font-size: clamp(1.3rem, 3.5vw, 1.8rem);
   font-weight: bold;
   cursor: pointer;
   user-select: none;
@@ -282,7 +282,7 @@ function endSelection() {
     position: absolute;
     width: clamp(38px, 7.5vw, 48px);
     height: clamp(38px, 7.5vw, 48px);
-    border-radius: 50%;
+    border-radius: 40%;
     background: linear-gradient(145deg, #3d5a70, #2c3e50);
     color: #ecf0f1;
     border: 2px solid rgba(236, 240, 241, 0.35);
