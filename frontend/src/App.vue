@@ -19,7 +19,7 @@ const currentSelectedWord = ref<string>('');
 
 // --- Oyuncu ve İsim Yönetimi ---
 const playerName = ref('');
-const tempPlayerName = ref(''); // İsim giriş ekranındaki input için
+const tempPlayerName = ref('');
 const showNameInput = ref(true);
 
 // --- Tek Oyunculu Mod için ---
@@ -29,11 +29,12 @@ const localFoundWords = ref<string[]>([]);
 const isMultiplayer = ref(false);
 const roomId = ref<string | null>(null);
 const roomIdToJoin = ref('');
-const customRoomNameToCreate = ref(''); // Yeni oda oluşturmak için
+const customRoomNameToCreate = ref('');
 const players = ref<Record<string, { name: string, score: number }>>({});
-const multiplayerFoundWords = ref<Record<string, string>>({}); // DEĞİŞİKLİK: Bu satır geri eklendi
+const multiplayerFoundWords = ref<Record<string, string>>({});
 const showGameInfoPopup = ref(false);
 const copied = ref(false);
+const isTransitioningToNextRound = ref(false);
 
 // --- Crossword ve Kelime Yönetimi ---
 const { grid, placedWords } = useCrossword(computed(() => apiWords.value));
@@ -146,7 +147,8 @@ watch(currentSelectedWord, (newWord: string) => {
 });
 
 const allWordsFound = computed(() => {
-  return words.value.length > 0 && words.value.length === foundWords.value.length;
+  if (words.value.length === 0) return false;
+  return words.value.length === foundWords.value.length;
 });
 
 function shuffleLetters() {
@@ -182,6 +184,21 @@ onMounted(() => {
     players.value = data.players;
     multiplayerFoundWords.value = data.foundWords as Record<string, string>;
     loading.value = false;
+  });
+
+  socket.on('newRound', (data) => {
+    isTransitioningToNextRound.value = true;
+
+    setTimeout(() => {
+      letters.value = data.puzzle.letters;
+      apiWords.value = data.puzzle.words;
+      players.value = data.players;
+      multiplayerFoundWords.value = {};
+
+      setTimeout(() => {
+        isTransitioningToNextRound.value = false;
+      }, 500);
+    }, 1000);
   });
 
   socket.on('joinSuccess', (data) => { roomId.value = data.roomId; });
@@ -288,23 +305,36 @@ watch(currentThemeIndex, (newIndex) => {
     </div>
 
     <div v-else class="game-area">
+      <Transition name="fade">
+        <div v-if="isTransitioningToNextRound" class="popup-overlay transition-screen">
+          <h3>Yeni Tur Hazırlanıyor...</h3>
+        </div>
+      </Transition>
+
       <div v-if="loading" class="loading">Yükleniyor...</div>
       <div v-if="error" class="error">{{ error }}</div>
       <template v-if="!loading && !error && words.length > 0">
-        <div v-if="allWordsFound" class="success-message">
-          <h2>Tebrikler! Tüm kelimeleri buldunuz!</h2>
-          <div class="success-buttons">
-            <button v-if="!isMultiplayer" @click="createNewPuzzle(difficulty)" class="next-btn">Yeni Bulmaca</button>
-            <button @click="goBackToMenu" class="restart-btn">Ana Menü</button>
-          </div>
+        <div v-if="allWordsFound && !isTransitioningToNextRound" class="success-message">
+          <h3 v-if="isMultiplayer">
+            Tebrikler, turu tamamladınız!<br>
+            <small>Yeni tur hazırlanıyor...</small>
+          </h3>
+          <template v-else>
+            <h2>Tebrikler! Tüm kelimeleri buldunuz!</h2>
+            <div class="success-buttons">
+              <button @click="createNewPuzzle(difficulty)" class="next-btn">Yeni Bulmaca</button>
+              <button @click="goBackToMenu" class="restart-btn">Ana Menü</button>
+            </div>
+          </template>
         </div>
-        <template v-else>
+
+        <template v-else-if="!allWordsFound">
           <div v-if="showGameInfoPopup" class="popup-overlay" @click.self="toggleGameInfoPopup">
             <div class="game-info-popup">
               <button @click="toggleGameInfoPopup" class="close-popup-btn">×</button>
               <div v-if="isMultiplayer && roomId" class="popup-section">
                 <h3>Oda Bilgisi</h3>
-                <p>Bu kodu arkadaşlarınla paylaşarak odaya davet et.</p>
+                <p>Bu oda adını arkadaşlarınla paylaşarak odaya davet et.</p>
                 <div class="room-id-container">
                   <strong class="room-id">{{ roomId }}</strong>
                   <button @click="copyRoomId" class="copy-btn">
@@ -344,19 +374,33 @@ watch(currentThemeIndex, (newIndex) => {
 main { display: flex; flex-direction: column; height: 100vh; max-height: 100vh; font-family: sans-serif; background-color: var(--background-color); color: var(--text-color); box-sizing: border-box; padding: 0 1rem; overflow: hidden; transition: background-color 0.3s, color 0.3s; }
 header { display: flex; align-items: center; justify-content: center; padding: 0.7rem 1rem; flex-shrink: 0; position: relative; width: 100%; box-sizing: border-box; }
 .back-button { background: var(--button-bg); border: 1px solid var(--button-border); color: var(--text-color); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; cursor: pointer; transition: all 0.2s ease; position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); }
-.back-button:hover { background: var(--button-hover-bg); }
 .header-actions { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 0.5rem; }
-.theme-switcher-container { position: relative; }
 .header-btn { background: var(--button-bg); border: 1px solid var(--button-border); color: var(--text-color); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; cursor: pointer; transition: all 0.2s ease; }
-.header-btn:hover { background: var(--button-hover-bg); }
-.theme-selector-popover { position: absolute; top: 50px; right: 0; background-color: var(--background-color); border: 1px solid var(--button-border); border-radius: 8px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; z-index: 10; }
-.theme-option { display: flex; align-items: center; gap: 0.75rem; background: none; border: none; color: var(--text-color); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; text-align: left; width: 100%; font-size: 1rem; }
+.theme-selector-popover { position: absolute; top: 50px; right: 0; background-color: var(--background-color); border: 1px solid var(--button-border); border-radius: 8px; padding: 0.5rem; z-index: 10; }
 h1 { font-size: clamp(1.1rem, 4.5vw, 1.8rem); margin: 0; text-align: center; flex-grow: 1; padding: 0 110px; box-sizing: border-box; }
 .level-selector { flex: 1; display: flex; justify-content: center; align-items: center; flex-direction: column; gap: 2rem; width: 100%; max-width: 800px; margin: 0 auto; padding: 1rem; }
 .difficulty-selector, .multiplayer-menu { text-align: center; width: 100%; }
 .difficulty-selector h2, .multiplayer-menu h2 { color: var(--text-color); margin-bottom: 1.5rem; font-size: clamp(1.2rem, 4vw, 1.8rem); }
 .difficulty-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
-.difficulty-btn { background: var(--button-bg); border: 2px solid var(--button-border); color: var(--text-color); padding: 1.5rem 2rem; border-radius: 12px; cursor: pointer; font-size: 1.2rem; font-weight: bold; transition: all 0.3s ease; min-width: 140px; }
+
+/* DÜZELTME: Animasyon stilleri geri eklendi */
+.difficulty-btn {
+  background: var(--button-bg);
+  border: 2px solid var(--button-border);
+  color: var(--text-color);
+  padding: 1.5rem 2rem;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  min-width: 140px;
+}
+.difficulty-btn:hover {
+  background: var(--button-hover-bg);
+  transform: translateY(-2px);
+}
+
 .multiplayer-menu { border-top: 2px solid var(--button-border); padding-top: 2rem; max-width: 450px; }
 .join-room-container { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
 .create-room-container { display: flex; flex-direction: column; gap: 0.75rem; }
@@ -369,23 +413,33 @@ h1 { font-size: clamp(1.1rem, 4.5vw, 1.8rem); margin: 0; text-align: center; fle
 .word-display-section { flex: 0 1 auto; width: 100%; max-height: 45vh; display: flex; justify-content: center; align-items: center; overflow: hidden; }
 .right-panel { display: flex; flex-direction: column; gap: 1rem; flex-grow: 1; justify-content: center;}
 .letter-circle-section { flex: 0 0 auto; width: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 0.5rem; }
-.loading, .error { text-align: center; padding: 2rem; font-size: 1.2rem; }
-.error { color: var(--error-color); }
-.success-message { text-align: center; margin-bottom: 1rem; }
+.loading, .error { text-align: center; padding: 2rem; font-size: 1.2rem; color: var(--error-color); }
+.success-message { text-align: center; margin: 2rem; }
+.success-message h2 { font-size: 1.8rem; color: var(--success-color); }
+.success-message small { font-size: 1rem; color: var(--text-color); opacity: 0.8; }
+.success-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-top: 1rem; }
+.next-btn, .restart-btn { padding: 0.8rem 1.5rem; font-size: 1rem; cursor: pointer; border: none; border-radius: 8px; font-weight: bold; }
+.next-btn { background-color: var(--success-color); color: white; }
+.restart-btn { background-color: var(--button-bg); color: var(--text-color); border: 1px solid var(--button-border); }
 
 /* --- Pop-up Stilleri --- */
 .popup-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 100; }
 .game-info-popup, .name-input-popup { background-color: var(--background-color); padding: 2rem; border-radius: 12px; border: 1px solid var(--button-border); width: 90%; max-width: 400px; position: relative; display: flex; flex-direction: column; gap: 1.5rem; }
 .name-input-popup { gap: 1rem; text-align: center; }
-.name-input-popup p { margin: 0 0 0.5rem; }
 .close-popup-btn { position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 2rem; color: var(--text-color); cursor: pointer; line-height: 1; }
-.popup-section h3 { margin: 0 0 0.5rem; border-bottom: 1px solid var(--button-border); padding-bottom: 0.5rem; }
-.room-id-container { display: flex; justify-content: space-between; align-items: center; background-color: var(--button-bg); padding: 0.5rem 1rem; border-radius: 8px; }
-.room-id { font-size: 1.2rem; font-weight: bold; color: var(--success-color); letter-spacing: 1px; }
-.copy-btn { padding: 0.5rem 1rem; border: 1px solid var(--button-border); border-radius: 6px; background-color: var(--background-color); color: var(--text-color); cursor: pointer; }
 .popup-players-list { list-style: none; padding: 0; margin: 0; }
 .popup-players-list li { display: flex; justify-content: space-between; padding: 0.3rem 0; }
 .player-score { font-weight: bold; }
+
+/* --- Geçiş Ekranı Stilleri --- */
+.transition-screen { background-color: var(--background-color); color: var(--text-color); }
+.transition-screen h2 { color: var(--success-color); font-size: 2rem; }
+
+/* --- Vue Transition Stilleri --- */
+.fade-enter-active,
+.fade-leave-active { transition: opacity 0.5s ease; }
+.fade-enter-from,
+.fade-leave-to { opacity: 0; }
 
 @media (min-width: 769px) {
   .game-container { flex-direction: row; justify-content: center; align-items: flex-start; gap: 2rem; max-width: 1200px; margin: 0 auto; }

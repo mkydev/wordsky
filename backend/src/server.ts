@@ -112,7 +112,8 @@ io.on('connection', (socket) => {
     gameRooms[roomName] = {
       puzzle,
       players: { [socket.id]: { name: playerName, score: 0 } },
-      foundWords: {}
+      foundWords: {},
+      difficulty: difficulty // Odanın zorluk seviyesini kaydet
     };
 
     socket.join(roomName);
@@ -143,14 +144,40 @@ io.on('connection', (socket) => {
 
   socket.on('wordFound', ({ roomId, word }) => {
     const room = gameRooms[roomId];
-    if (room && room.puzzle.words.includes(word) && !room.foundWords[word]) {
-        room.players[socket.id].score += word.length;
-        room.foundWords[word] = socket.id;
+    if (!room || !room.puzzle.words.includes(word) || room.foundWords[word]) {
+      return;
+    }
 
-        io.to(roomId).emit('gameUpdate', {
-            players: room.players,
-            foundWords: room.foundWords
-        });
+    room.players[socket.id].score += word.length;
+    room.foundWords[word] = socket.id;
+
+    const allWordsFound = Object.keys(room.foundWords).length === room.puzzle.words.length;
+
+    // Eğer tüm kelimeler bulunduysa, yeni turu başlat
+    if (allWordsFound) {
+      console.log(`🎉 "${roomId}" odasındaki bulmaca tamamlandı! Yeni bulmaca oluşturuluyor...`);
+      const newPuzzle = createPuzzle(room.difficulty);
+
+      if (newPuzzle) {
+        room.puzzle = newPuzzle;
+        room.foundWords = {};
+        
+        // Oyuncuların tebrik mesajını görmesi için kısa bir gecikme
+        setTimeout(() => {
+          io.to(roomId).emit('newRound', {
+            puzzle: room.puzzle,
+            players: room.players
+          });
+        }, 2500); // 2.5 saniye bekle
+      } else {
+        io.to(roomId).emit('error', { message: 'Yeni bulmaca oluşturulamadı. Oyun sona erdi.' });
+      }
+    } else {
+      // Oyun devam ediyorsa normal güncelleme gönder
+      io.to(roomId).emit('gameUpdate', {
+        players: room.players,
+        foundWords: room.foundWords
+      });
     }
   });
 
