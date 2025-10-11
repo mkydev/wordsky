@@ -27,7 +27,7 @@ async function createNewPuzzle(diff: 4 | 5 | 6) {
   foundWords.value = [];
   apiWords.value = [];
   try {
-    const response = await fetch(`${apiUrl}/api/v1/puzzles/random?difficulty${diff}`);
+    const response = await fetch(`${apiUrl}/api/v1/puzzles/random?difficulty=${diff}`);
     if (!response.ok) {
       throw new Error('Bulmaca oluşturulurken bir hata oluştu.');
     }

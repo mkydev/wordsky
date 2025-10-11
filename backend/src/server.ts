@@ -60,7 +60,7 @@ app.get('/api/v1/puzzles/random', (req, res) => {
     }
 
     const MIN_WORD_COUNT = 5; // Sınırlar güncellendi
-    const MAX_WORD_COUNT = 8;
+    const MAX_WORD_COUNT = 10;
     const MAX_ATTEMPTS = 500; // Deneme sayısı azaltıldı
 
     const allWords = new Set(
@@ -110,5 +110,5 @@ app.get('/api/v1/puzzles/random', (req, res) => {
 });
 
 app.listen(port, HOST, () => {
-  console.log(`✅ Backend http://localhost:${HOST}:${port} adresinde çalışıyor.`);
+  console.log(`✅ Backend ${HOST}:${port} adresinde alışıyor.`);
 });
