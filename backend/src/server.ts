@@ -107,11 +107,20 @@ function createPuzzle(difficulty: number): { letters: string[], words: string[] 
 
 // ------------------- Socket.IO Mantığı -------------------
 const gameRooms: { [key: string]: any } = {};
+// Boş odaların kapatma zamanlayıcılarını saklamak için bir Map
+const emptyRoomTimers = new Map<string, NodeJS.Timeout>();
 
 io.on('connection', (socket) => {
   console.log(`✨ Yeni bir kullanıcı bağlandı: ${socket.id}`);
 
   socket.on('createRoom', ({ difficulty, roomName, playerName }) => {
+    // Eğer odaya giriliyorsa ve bir kapatma sayacı varsa, iptal et
+    if (emptyRoomTimers.has(roomName)) {
+        clearTimeout(emptyRoomTimers.get(roomName)!);
+        emptyRoomTimers.delete(roomName);
+        console.log(`⏰ ${roomName} odası için kapatma sayacı, yeni bir oyuncu katıldığı için iptal edildi.`);
+    }
+      
     if (gameRooms[roomName]) {
       socket.emit('error', { message: `"${roomName}" isminde bir oda zaten mevcut.` });
       return;
@@ -136,6 +145,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on('joinRoom', ({ roomId, playerName }) => {
+    // Eğer odaya giriliyorsa ve bir kapatma sayacı varsa, iptal et
+    if (emptyRoomTimers.has(roomId)) {
+        clearTimeout(emptyRoomTimers.get(roomId)!);
+        emptyRoomTimers.delete(roomId);
+        console.log(`⏰ ${roomId} odası için kapatma sayacı, yeni bir oyuncu katıldığı için iptal edildi.`);
+    }
+
     const room = gameRooms[roomId];
     if (room) {
       socket.join(roomId);
@@ -206,10 +222,23 @@ io.on('connection', (socket) => {
 
         io.to(roomId).emit('playerLeft', { players: gameRooms[roomId].players });
         if (Object.keys(gameRooms[roomId].players).length === 0) {
-          delete gameRooms[roomId];
-          console.log(`🗑️ ${roomId} odası boş olduğu için kapatıldı.`);
+            console.log(`🚪 ${roomId} odası boş. Kapatmak için 5 dakika sayacı başlatıldı.`);
+            
+            // 5 dakikalık bir zamanlayıcı başlat
+            const timer = setTimeout(() => {
+              // 5 dakika sonra odanın hala var olup olmadığını ve hala boş olup olmadığını kontrol et
+              if (gameRooms[roomId] && Object.keys(gameRooms[roomId].players).length === 0) {
+                delete gameRooms[roomId];
+                console.log(`🗑️ ${roomId} odası 5 dakika boş kaldığı için kapatıldı.`);
+              }
+              // Zamanlayıcı işlevini tamamladığında Map'ten sil
+              emptyRoomTimers.delete(roomId);
+            }, 300000); // 5 dakika = 300,000 milisaniye
+      
+            // Zamanlayıcıyı roomId ile eşleştirerek Map'e kaydet
+            emptyRoomTimers.set(roomId, timer);
         }
-        break; 
+        break;
       }
     }
   });
