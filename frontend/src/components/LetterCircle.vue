@@ -27,9 +27,15 @@
       <button class="shuffle-button" @click="$emit('shuffle')" title="Harfleri Karıştır">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="16 16 21 16 21 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
       </button>
-      <div class="lines-container">
-          <div v-for="line in lines" :key="line.key" class="line" :style="line.style"></div>
-      </div>
+      <svg class="lines-container" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" style="stop-color:#42b883;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#36a085;stop-opacity:1" />
+            </linearGradient>
+          </defs>
+          <path :d="linePath" class="line-path" />
+      </svg>
     </div>
   </div>
 </template>
@@ -101,32 +107,49 @@ watch(currentWord, (newVal) => {
     emit('update:currentSelectedWord', newVal);
 });
 
-const lines = computed(() => {
-    const lines = [];
-    if (selectedIndices.value.length > 1) {
-        for (let i = 0; i < selectedIndices.value.length - 1; i++) {
-            const fromIndex = selectedIndices.value[i];
-            const toIndex = selectedIndices.value[i + 1];
+const linePath = computed(() => {
+    if (selectedIndices.value.length < 2) return '';
 
-            if (fromIndex === undefined || toIndex === undefined) continue;
+    const points = selectedIndices.value.map(index => {
+        const coords = getLetterCoords(index);
+        // Normalize to 0-100 range for SVG viewBox
+        const x = ((coords.x + containerSize.value / 2) / containerSize.value) * 100;
+        const y = ((coords.y + containerSize.value / 2) / containerSize.value) * 100;
+        return { x, y };
+    });
 
-            const fromCoords = getLetterCoords(fromIndex);
-            const toCoords = getLetterCoords(toIndex);
-
-            const length = Math.sqrt(Math.pow(toCoords.x - fromCoords.x, 2) + Math.pow(toCoords.y - fromCoords.y, 2));
-            const angle = Math.atan2(toCoords.y - fromCoords.y, toCoords.x - fromCoords.x) * 180 / Math.PI;
-
-            const style = {
-                top: `${fromCoords.y + containerSize.value / 2}px`,
-                left: `${fromCoords.x + containerSize.value / 2}px`,
-                width: `${length}px`,
-                transform: `rotate(${angle}deg)`,
-            };
-
-            lines.push({ key: `${fromIndex}-${toIndex}`, style });
-        }
+    if (points.length === 2) {
+        // For just 2 points, use simple line
+        const p0 = points[0];
+        const p1 = points[1];
+        if (!p0 || !p1) return '';
+        return `M ${p0.x} ${p0.y} L ${p1.x} ${p1.y}`;
     }
-    return lines;
+
+    // Create smooth Catmull-Rom spline curve
+    const firstPoint = points[0];
+    if (!firstPoint) return '';
+
+    let path = `M ${firstPoint.x} ${firstPoint.y}`;
+
+    for (let i = 0; i < points.length - 1; i++) {
+        const p0 = points[Math.max(i - 1, 0)];
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        const p3 = points[Math.min(i + 2, points.length - 1)];
+
+        if (!p0 || !p1 || !p2 || !p3) continue;
+
+        // Catmull-Rom to Bezier conversion
+        const cp1x = p1.x + (p2.x - p0.x) / 6;
+        const cp1y = p1.y + (p2.y - p0.y) / 6;
+        const cp2x = p2.x - (p3.x - p1.x) / 6;
+        const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+        path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+    }
+
+    return path;
 });
 
 function startSelection(letter: string, index: number) {
@@ -297,16 +320,19 @@ function endSelection() {
     top: 0;
     left: 0;
     pointer-events: none;
+    overflow: visible;
 }
 
-.line {
-    position: absolute;
-    height: 4px;
-    background: linear-gradient(90deg, #42b883, #36a085);
-    transform-origin: 0 50%;
-    z-index: 0;
-    border-radius: 2px;
-    box-shadow: 0 2px 6px rgba(66, 184, 131, 0.4);
+.line-path {
+    fill: none;
+    stroke: url(#lineGradient);
+    stroke-width: 1.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 2px 6px rgba(66, 184, 131, 0.5))
+            drop-shadow(0 0 8px rgba(66, 184, 131, 0.3));
+    transition: d 0.05s ease-out;
+    opacity: 0.95;
 }
 
 /* Desktop için optimize edilmiş boyutlar */
