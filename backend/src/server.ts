@@ -58,8 +58,8 @@ const allWordsSet = new Set(
 );
 
 function createPuzzle(difficulty: number): { letters: string[], words: string[] } | null {
-    const MIN_WORD_COUNT = 5;
-    const MAX_WORD_COUNT = 10;
+    const MIN_WORD_COUNT = 4;
+    const MAX_WORD_COUNT = 8;
     const MAX_ATTEMPTS = 500;
 
     const wordsByLength = Array.from(allWordsSet).filter(w => w.length === difficulty);
@@ -77,6 +77,10 @@ function createPuzzle(difficulty: number): { letters: string[], words: string[] 
       if (constructibleSet.size >= MIN_WORD_COUNT && constructibleSet.size <= MAX_WORD_COUNT) {
         const finalWords = Array.from(constructibleSet).sort((a, b) => a.length - b.length || a.localeCompare(b));
         console.log(`✅ Multiplayer için bulmaca bulundu (attempt ${attempt + 1})`);
+        console.log(`Harfler: ${letters.join(', ')}`);
+        console.log(`Kelimeler (${finalWords.length}): ${finalWords.join(', ')}`);
+        console.log('-----------------------------');
+
         return { letters, words: finalWords };
       }
     }
