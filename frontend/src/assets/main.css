@@ -19,14 +19,36 @@
   --error-color: #f44336;
 }
 
+.theme-baby-blue {
+  --background-color: #3e88b5; /* Bebek Mavisi */
+  --text-color: #06131a; /* Koyu barut rengi */
+  --button-bg: rgba(43, 58, 66, 0.1);
+  --button-border: rgba(43, 58, 66, 0.3);
+  --button-hover-bg: rgba(43, 58, 66, 0.2);
+  --success-color: #469faf; /* Standart Yeşil */
+  --error-color: #D32F2F; /* Standart Kırmızı */
+  --placeholder-color: rgba(5, 15, 20, 0.5);
+}
+
+
 .theme-orange {
-  --background-color: #e65100;
-  --text-color: #ffcc80;
-  --button-bg: rgba(255, 204, 128, 0.2);
-  --button-border: rgba(255, 204, 128, 0.4);
-  --button-hover-bg: rgba(255, 204, 128, 0.3);
-  --success-color: #ff9800;
-  --error-color: #f44336;
+  --background-color: #BF5700; /* Daha tok bir turuncu */
+  --text-color: #FFDAB9; /* Daha yumuşak bir metin rengi (PeachPuff) */
+  --button-bg: rgba(255, 218, 185, 0.2);
+  --button-border: rgba(255, 218, 185, 0.4);
+  --button-hover-bg: rgba(255, 218, 185, 0.3);
+  --success-color: #F48C06; /* Canlı bir başarı rengi */
+  --error-color: #D00000;
+}
+
+.theme-walnut-green {
+  --background-color: #323e1d; /* Ceviz yeşili (DarkOliveGreen) */
+  --text-color: #F5F5DC; /* Bej metin rengi */
+  --button-bg: rgba(245, 245, 220, 0.15);
+  --button-border: rgba(245, 245, 220, 0.35);
+  --button-hover-bg: rgba(245, 245, 220, 0.25);
+  --success-color: #9ACD32; /* Daha parlak bir yeşil (YellowGreen) */
+  --error-color: #DC143C; /* Canlı bir kırmızı (Crimson) */
 }
 
 * {
@@ -64,7 +86,7 @@ body {
     -webkit-text-size-adjust: 100%;
     -ms-text-size-adjust: 100%;
   }
-  
+
   body {
     font-size: 16px; /* Prevent zoom on iOS */
   }
