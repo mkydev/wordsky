@@ -265,7 +265,7 @@ watch(currentThemeIndex, (newIndex) => {
     </div>
 
     <header v-if="!showNameInput">
-      <h1>Word of YK</h1>
+      <h1>WordYK</h1>
       <div class="header-actions">
         <button v-if="gameStarted && isMultiplayer" @click="toggleGameInfoPopup" class="header-btn">👥</button>
         <div class="theme-switcher-container">
