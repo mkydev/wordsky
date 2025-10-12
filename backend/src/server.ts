@@ -58,7 +58,7 @@ const allWordsSet = new Set(
 );
 
 function createPuzzle(difficulty: number): { letters: string[], words: string[] } | null {
-    const MIN_WORD_COUNT = 4;
+    const MIN_WORD_COUNT = 5;
     const MAX_WORD_COUNT = 8;
     const MAX_ATTEMPTS = 500;
 
@@ -74,30 +74,40 @@ function createPuzzle(difficulty: number): { letters: string[], words: string[] 
       const letters = [...baseWord];
       const constructibleSet = generateWordsFromLetters(letters, allWordsSet, difficulty);
 
-      // Kelime sayısı uygun aralıkta mı diye kontrol et
-      if (constructibleSet.size >= MIN_WORD_COUNT && constructibleSet.size <= MAX_WORD_COUNT) {
-        
-        const wordsArray = Array.from(constructibleSet);
-        
-        // --- YENİ KURAL KONTROLÜ ---
-        // 3 harfli kelimelerin sayısını bul
-        const threeLetterWordCount = wordsArray.filter(w => w.length === 3).length;
+      const wordsArray = Array.from(constructibleSet);
 
-        // Eğer 3 harfli kelime sayısı 2'den fazlaysa, bu bulmacayı atla ve yeni denemeye geç
-        if (threeLetterWordCount > 2) {
-          continue; // Bu denemeyi geçersiz say ve döngünün başına dön
-        }
-        // --- KONTROL SONU ---
+      // --- 1. ADIM: İÇ İÇE KELİME KONTROLÜ ---
+      // Bir kelimenin başka bir kelimenin içinde geçip geçmediğini kontrol et
+      const filteredWords = wordsArray.filter(word => {
+        return !wordsArray.some(otherWord => 
+          otherWord !== word && otherWord.includes(word)
+        );
+      });
 
-        const finalWords = wordsArray.sort((a, b) => a.length - b.length || a.localeCompare(b));
-        
-        console.log(`✅ Bulmaca bulundu (attempt ${attempt + 1})`);
-        console.log(`Harfler: ${letters.join(', ')}`);
-        console.log(`Kelimeler (${finalWords.length}): ${finalWords.join(', ')}`);
-        console.log('-----------------------------');
-
-        return { letters, words: finalWords };
+      // --- 2. ADIM: FİLTRELENMİŞ KELİME SAYISI KONTROLÜ ---
+      // İç içe kelimeleri çıkardıktan SONRA kelime sayısı uygun mu?
+      if (filteredWords.length < MIN_WORD_COUNT || filteredWords.length > MAX_WORD_COUNT) {
+        continue; // Uygun değilse bir sonraki denemeye geç
       }
+
+      // --- 3. ADIM: 3 HARFLİ KELİME KONTROLÜ ---
+      // 3 harfli kelimelerin sayısını bul
+      const threeLetterWordCount = filteredWords.filter(w => w.length === 3).length;
+
+      // Eğer 3 harfli kelime sayısı 2'den fazlaysa, bu bulmacayı atla
+      if (threeLetterWordCount > 2) {
+        continue; // Bu denemeyi geçersiz say ve döngünün başına dön
+      }
+
+      // --- TÜM KONTROLLERDEN GEÇTİ, BULMACAYI OLUŞTUR ---
+      const finalWords = filteredWords.sort((a, b) => a.length - b.length || a.localeCompare(b));
+      
+      console.log(`✅ Bulmaca bulundu (attempt ${attempt + 1})`);
+      console.log(`Harfler: ${letters.join(', ')}`);
+      console.log(`Kelimeler (${finalWords.length}): ${finalWords.join(', ')}`);
+      console.log('-----------------------------');
+
+      return { letters, words: finalWords };
     }
 
     console.error(`❌ Hiç uygun bulmaca bulunamadı (${MIN_WORD_COUNT}-${MAX_WORD_COUNT} kelime ve en fazla 2 adet 3 harfli kelime).`);
