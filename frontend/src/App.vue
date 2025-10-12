@@ -166,7 +166,7 @@ function shuffleLetters() {
 onMounted(() => {
   setTimeout(() => {
     showSplash.value = false;
-  }, 3000);
+  }, 1500);
 
   const savedName = localStorage.getItem('wordsky_playerName');
   if (savedName) {
