@@ -19,7 +19,7 @@
 }
 
 img {
-  max-width: 300px;
-  max-height: 300px;
+  max-width: 220px;
+  max-height: 220px;
 }
 </style>
