@@ -2,8 +2,12 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import LetterCircle from './components/LetterCircle.vue';
 import WordDisplay from './components/WordDisplay.vue';
+import SplashScreen from './components/SplashScreen.vue';
 import { useCrossword } from './composables/useCrossword';
 import { io } from 'socket.io-client';
+
+// --- Splash Screen ---
+const showSplash = ref(true);
 
 // --- Temel Değişkenler ---
 const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
@@ -160,6 +164,10 @@ function shuffleLetters() {
 
 // --- Socket ve Lifecycle Olayları ---
 onMounted(() => {
+  setTimeout(() => {
+    showSplash.value = false;
+  }, 3000);
+
   const savedName = localStorage.getItem('wordsky_playerName');
   if (savedName) {
     playerName.value = savedName;
@@ -247,6 +255,7 @@ watch(currentThemeIndex, (newIndex) => {
 </script>
 
 <template>
+  <SplashScreen v-if="showSplash" />
   <main :class="currentTheme">
     <div v-if="showNameInput" class="popup-overlay">
       <div class="name-input-popup">
