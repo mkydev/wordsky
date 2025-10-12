@@ -49,7 +49,7 @@ function generateWordsFromLetters(
   return foundWords;
 }
 
-// ------------------- Bulmaca Oluşturma Fonksiyonu (DÜZENLENDİ) -------------------
+// ------------------- Bulmaca Oluşturma Fonksiyonu -------------------
 const allWordsSet = new Set(
     Object.values(turkishWords)
       .flat()
@@ -77,7 +77,6 @@ function createPuzzle(difficulty: number): { letters: string[], words: string[] 
       const wordsArray = Array.from(constructibleSet);
 
       // --- 1. ADIM: İÇ İÇE KELİME KONTROLÜ ---
-      // Bir kelimenin başka bir kelimenin içinde geçip geçmediğini kontrol et
       const filteredWords = wordsArray.filter(word => {
         return !wordsArray.some(otherWord => 
           otherWord !== word && otherWord.includes(word)
@@ -85,18 +84,14 @@ function createPuzzle(difficulty: number): { letters: string[], words: string[] 
       });
 
       // --- 2. ADIM: FİLTRELENMİŞ KELİME SAYISI KONTROLÜ ---
-      // İç içe kelimeleri çıkardıktan SONRA kelime sayısı uygun mu?
       if (filteredWords.length < MIN_WORD_COUNT || filteredWords.length > MAX_WORD_COUNT) {
-        continue; // Uygun değilse bir sonraki denemeye geç
+        continue;
       }
 
       // --- 3. ADIM: 3 HARFLİ KELİME KONTROLÜ ---
-      // 3 harfli kelimelerin sayısını bul
       const threeLetterWordCount = filteredWords.filter(w => w.length === 3).length;
-
-      // Eğer 3 harfli kelime sayısı 2'den fazlaysa, bu bulmacayı atla
       if (threeLetterWordCount > 2) {
-        continue; // Bu denemeyi geçersiz say ve döngünün başına dön
+        continue;
       }
 
       // --- TÜM KONTROLLERDEN GEÇTİ, BULMACAYI OLUŞTUR ---
@@ -114,21 +109,46 @@ function createPuzzle(difficulty: number): { letters: string[], words: string[] 
     return null;
 }
 
-
 // ------------------- Socket.IO Mantığı -------------------
-const gameRooms: { [key: string]: any } = {};
-// Boş odaların kapatma zamanlayıcılarını saklamak için bir Map
+interface Player {
+  playerId: string;
+  name: string;
+  score: number;
+  socketId: string;
+  isConnected: boolean;
+}
+
+interface GameRoom {
+  puzzle: { letters: string[], words: string[] };
+  players: { [playerId: string]: Player };
+  foundWords: { [word: string]: string };
+  difficulty: number;
+}
+
+const gameRooms: { [roomId: string]: GameRoom } = {};
 const emptyRoomTimers = new Map<string, NodeJS.Timeout>();
+const disconnectedPlayerTimers = new Map<string, NodeJS.Timeout>();
+const socketToPlayer = new Map<string, { roomId: string, playerId: string }>();
+
+// Benzersiz oyuncu ID oluştur
+function generatePlayerId(): string {
+  return `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+// Oyuncu ismine 3 haneli rastgele sayı ekle
+function addRandomSuffixToName(name: string): string {
+  const randomNumber = Math.floor(Math.random() * 900) + 100; // 100-999 arası
+  return `${name}-${randomNumber}`;
+}
 
 io.on('connection', (socket) => {
   console.log(`✨ Yeni bir kullanıcı bağlandı: ${socket.id}`);
 
   socket.on('createRoom', ({ difficulty, roomName, playerName }) => {
-    // Eğer odaya giriliyorsa ve bir kapatma sayacı varsa, iptal et
     if (emptyRoomTimers.has(roomName)) {
         clearTimeout(emptyRoomTimers.get(roomName)!);
         emptyRoomTimers.delete(roomName);
-        console.log(`⏰ ${roomName} odası için kapatma sayacı, yeni bir oyuncu katıldığı için iptal edildi.`);
+        console.log(`⏰ ${roomName} odası için kapatma sayacı iptal edildi.`);
     }
       
     if (gameRooms[roomName]) {
@@ -142,59 +162,95 @@ io.on('connection', (socket) => {
       return;
     }
 
+    const playerId = generatePlayerId();
+    const displayName = addRandomSuffixToName(playerName);
+    
     gameRooms[roomName] = {
       puzzle,
-      players: { [socket.id]: { name: playerName, score: 0 } },
+      players: {
+        [playerId]: { playerId, name: displayName, score: 0, socketId: socket.id, isConnected: true }
+      },
       foundWords: {},
-      difficulty: difficulty // Odanın zorluk seviyesini kaydet
+      difficulty: difficulty
     };
 
+    socketToPlayer.set(socket.id, { roomId: roomName, playerId });
     socket.join(roomName);
-    console.log(`🚪 ${playerName} (${socket.id}) kullanıcısı "${roomName}" odasını oluşturdu.`);
-    socket.emit('roomCreated', { roomId: roomName, puzzle, players: gameRooms[roomName].players });
+    
+    console.log(`🚪 ${displayName} (${playerId}) kullanıcısı "${roomName}" odasını oluşturdu.`);
+    socket.emit('roomCreated', { roomId: roomName, playerId, puzzle, players: gameRooms[roomName].players });
   });
 
-  socket.on('joinRoom', ({ roomId, playerName }) => {
-    // Eğer odaya giriliyorsa ve bir kapatma sayacı varsa, iptal et
+  socket.on('joinRoom', ({ roomId, playerName, playerId }) => {
     if (emptyRoomTimers.has(roomId)) {
         clearTimeout(emptyRoomTimers.get(roomId)!);
         emptyRoomTimers.delete(roomId);
-        console.log(`⏰ ${roomId} odası için kapatma sayacı, yeni bir oyuncu katıldığı için iptal edildi.`);
+        console.log(`⏰ ${roomId} odası için kapatma sayacı iptal edildi.`);
     }
 
     const room = gameRooms[roomId];
-    if (room) {
-      socket.join(roomId);
-      room.players[socket.id] = { name: playerName, score: 0 };
-      console.log(`➡️ ${playerName} (${socket.id}) kullanıcısı "${roomId}" odasına katıldı.`);
-      
-      socket.emit('joinSuccess', { roomId });
-
-      socket.emit('gameUpdate', {
-          puzzle: room.puzzle,
-          players: room.players,
-          foundWords: room.foundWords
-      });
-
-      socket.to(roomId).emit('playerJoined', { players: room.players });
-    } else {
+    if (!room) {
       socket.emit('error', { message: 'Oda bulunamadı.' });
+      return;
     }
+
+    socket.join(roomId);
+
+    // Eğer playerId verilmişse ve oyuncu odadaysa (yeniden bağlanma)
+    if (playerId && room.players[playerId]) {
+      const playerTimerKey = `${roomId}-${playerId}`;
+      
+      // Disconnect zamanlayıcısını iptal et
+      if (disconnectedPlayerTimers.has(playerTimerKey)) {
+        clearTimeout(disconnectedPlayerTimers.get(playerTimerKey)!);
+        disconnectedPlayerTimers.delete(playerTimerKey);
+      }
+      
+      // Socket ID'yi güncelle ve bağlantıyı aktif yap
+      room.players[playerId].socketId = socket.id;
+      room.players[playerId].isConnected = true;
+      socketToPlayer.set(socket.id, { roomId, playerId });
+      
+      console.log(`🔄 ${room.players[playerId].name} (${playerId}) "${roomId}" odasına geri döndü (Puan: ${room.players[playerId].score}).`);
+      
+      socket.emit('joinSuccess', { roomId, playerId });
+    } else {
+      // Yeni oyuncu - yeni playerId oluştur ve isme rastgele sayı ekle
+      const newPlayerId = generatePlayerId();
+      const displayName = addRandomSuffixToName(playerName);
+      
+      room.players[newPlayerId] = { playerId: newPlayerId, name: displayName, score: 0, socketId: socket.id, isConnected: true };
+      socketToPlayer.set(socket.id, { roomId, playerId: newPlayerId });
+      
+      console.log(`➡️ ${displayName} (${newPlayerId}) "${roomId}" odasına katıldı.`);
+      
+      socket.emit('joinSuccess', { roomId, playerId: newPlayerId });
+    }
+    
+    socket.emit('gameUpdate', {
+        puzzle: room.puzzle,
+        players: room.players,
+        foundWords: room.foundWords
+    });
+
+    socket.to(roomId).emit('playerJoined', { players: room.players });
   });
 
   socket.on('wordFound', ({ roomId, word }) => {
     const room = gameRooms[roomId];
-    const normalizedWord = normalize(word); // Kelimeyi normalize et
-    if (!room || !room.puzzle.words.includes(normalizedWord) || room.foundWords[normalizedWord]) {
+    const normalizedWord = normalize(word);
+    
+    const playerInfo = socketToPlayer.get(socket.id);
+    if (!playerInfo || !room || !room.puzzle.words.includes(normalizedWord) || room.foundWords[normalizedWord]) {
       return;
     }
 
-    room.players[socket.id].score += normalizedWord.length;
-    room.foundWords[normalizedWord] = socket.id;
+    const playerId = playerInfo.playerId;
+    room.players[playerId].score += normalizedWord.length;
+    room.foundWords[normalizedWord] = playerId;
 
     const allWordsFound = Object.keys(room.foundWords).length === room.puzzle.words.length;
 
-    // Eğer tüm kelimeler bulunduysa, yeni turu başlat
     if (allWordsFound) {
       console.log(`🎉 "${roomId}" odasındaki bulmaca tamamlandı! Yeni bulmaca oluşturuluyor...`);
       const newPuzzle = createPuzzle(room.difficulty);
@@ -203,18 +259,16 @@ io.on('connection', (socket) => {
         room.puzzle = newPuzzle;
         room.foundWords = {};
         
-        // Oyuncuların tebrik mesajını görmesi için kısa bir gecikme
         setTimeout(() => {
           io.to(roomId).emit('newRound', {
             puzzle: room.puzzle,
             players: room.players
           });
-        }, 2500); // 2.5 saniye bekle
+        }, 1500);
       } else {
         io.to(roomId).emit('error', { message: 'Yeni bulmaca oluşturulamadı. Oyun sona erdi.' });
       }
     } else {
-      // Oyun devam ediyorsa normal güncelleme gönder
       io.to(roomId).emit('gameUpdate', {
         players: room.players,
         foundWords: room.foundWords
@@ -224,33 +278,49 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log(`👋 Kullanıcı ayrıldı: ${socket.id}`);
-    for (const roomId in gameRooms) {
-      if (gameRooms[roomId].players[socket.id]) {
-        const playerName = gameRooms[roomId].players[socket.id].name;
-        delete gameRooms[roomId].players[socket.id];
-        console.log(`(i) ${playerName} kullanıcısı "${roomId}" odasından ayrıldı.`);
+    
+    const playerInfo = socketToPlayer.get(socket.id);
+    if (!playerInfo) return;
 
+    const { roomId, playerId } = playerInfo;
+    const room = gameRooms[roomId];
+    
+    if (!room || !room.players[playerId]) return;
+
+    const player = room.players[playerId];
+    player.isConnected = false;
+    
+    console.log(`⏳ ${player.name} "${roomId}" odasından geçici olarak ayrıldı (Puan: ${player.score}). 5 dakika bekleniyor...`);
+
+    const playerTimerKey = `${roomId}-${playerId}`;
+    const timer = setTimeout(() => {
+      if (gameRooms[roomId] && gameRooms[roomId].players[playerId] && !gameRooms[roomId].players[playerId].isConnected) {
+        const disconnectedPlayer = gameRooms[roomId].players[playerId];
+        delete gameRooms[roomId].players[playerId];
+        console.log(`🗑️ ${disconnectedPlayer.name} 5 dakika içinde geri dönmediği için "${roomId}" odasından çıkarıldı.`);
+        
         io.to(roomId).emit('playerLeft', { players: gameRooms[roomId].players });
+        
+        // Oda boş kaldıysa
         if (Object.keys(gameRooms[roomId].players).length === 0) {
-            console.log(`🚪 ${roomId} odası boş. Kapatmak için 5 dakika sayacı başlatıldı.`);
-            
-            // 5 dakikalık bir zamanlayıcı başlat
-            const timer = setTimeout(() => {
-              // 5 dakika sonra odanın hala var olup olmadığını ve hala boş olup olmadığını kontrol et
-              if (gameRooms[roomId] && Object.keys(gameRooms[roomId].players).length === 0) {
-                delete gameRooms[roomId];
-                console.log(`🗑️ ${roomId} odası 5 dakika boş kaldığı için kapatıldı.`);
-              }
-              // Zamanlayıcı işlevini tamamladığında Map'ten sil
-              emptyRoomTimers.delete(roomId);
-            }, 300000); // 5 dakika = 300,000 milisaniye
-      
-            // Zamanlayıcıyı roomId ile eşleştirerek Map'e kaydet
-            emptyRoomTimers.set(roomId, timer);
+          console.log(`🚪 ${roomId} odası boş. Kapatmak için 5 dakika sayacı başlatıldı.`);
+          
+          const roomTimer = setTimeout(() => {
+            if (gameRooms[roomId] && Object.keys(gameRooms[roomId].players).length === 0) {
+              delete gameRooms[roomId];
+              console.log(`🗑️ ${roomId} odası 5 dakika boş kaldığı için kapatıldı.`);
+            }
+            emptyRoomTimers.delete(roomId);
+          }, 300000);
+    
+          emptyRoomTimers.set(roomId, roomTimer);
         }
-        break;
       }
-    }
+      disconnectedPlayerTimers.delete(playerTimerKey);
+    }, 300000);
+
+    disconnectedPlayerTimers.set(playerTimerKey, timer);
+    socketToPlayer.delete(socket.id);
   });
 });
 
@@ -271,7 +341,6 @@ app.get('/api/v1/puzzles/random', (req, res) => {
       return res.status(500).json({ error: 'Bulmaca oluşturulurken bir hata oluştu.' });
     }
 });
-
 
 httpServer.listen(port, HOST, () => {
   console.log(`✅ Backend ${HOST}:${port} adresinde çalışıyor.`);

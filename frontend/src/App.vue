@@ -155,6 +155,15 @@ const allWordsFound = computed(() => {
   return words.value.length === foundWords.value.length;
 });
 
+watch(allWordsFound, async (newVal) => {
+  if (newVal && !isMultiplayer.value && gameStarted.value) {
+    // 2.5 saniye bekle (tebrik mesajını göster)
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    // Yeni bulmaca oluştur
+    await createNewPuzzle(difficulty.value);
+  }
+});
+
 function shuffleLetters() {
   for (let i = letters.value.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -329,16 +338,10 @@ watch(currentThemeIndex, (newIndex) => {
       <template v-if="!loading && !error && words.length > 0">
         <div v-if="allWordsFound && !isTransitioningToNextRound" class="success-message">
           <h3 v-if="isMultiplayer">
-            Tebrikler, turu tamamladınız!<br>
-            <small>Yeni tur hazırlanıyor...</small>
+          Tebrikler, turu tamamladınız!<br>
+          <small>Yeni tur hazırlanıyor...</small>
           </h3>
-          <template v-else>
-            <h2>Tebrikler! Tüm kelimeleri buldunuz!</h2>
-            <div class="success-buttons">
-              <button @click="createNewPuzzle(difficulty)" class="next-btn">Yeni Bulmaca</button>
-              <button @click="goBackToMenu" class="restart-btn">Ana Menü</button>
-            </div>
-          </template>
+          <h3 v-else>Tebrikler! Tüm kelimeleri buldunuz!</h3>
         </div>
 
         <template v-else-if="!allWordsFound">
