@@ -3,6 +3,10 @@ import cors from 'cors';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { turkishWords } from './data/turkishWords';
+import * as dotenv from 'dotenv';
+import { sendToTelegram } from './utils/telegramLogger';
+
+dotenv.config();
 
 const app = express();
 app.use(cors());
@@ -49,7 +53,7 @@ function generateWordsFromLetters(
   return foundWords;
 }
 
-// ------------------- Bulmaca Oluşturma Fonksiyonu -------------------
+// ------------------- Bulmaca Oluşturma Fonksiyonu (GÜNCELLENDİ) -------------------
 const allWordsSet = new Set(
     Object.values(turkishWords)
       .flat()
@@ -60,7 +64,8 @@ const allWordsSet = new Set(
 function createPuzzle(difficulty: number): { letters: string[], words: string[] } | null {
     const MIN_WORD_COUNT = 5;
     const MAX_WORD_COUNT = 8;
-    const MAX_ATTEMPTS = 500;
+    const MAX_ATTEMPTS = 5000;
+    const MIN_ATTEMPTS = 70; // YENİ: Minimum deneme sayısı eklendi.
 
     const wordsByLength = Array.from(allWordsSet).filter(w => w.length === difficulty);
 
@@ -69,6 +74,8 @@ function createPuzzle(difficulty: number): { letters: string[], words: string[] 
       return null;
     }
 
+    let lastFoundPuzzle: { letters: string[], words: string[] } | null = null; // YENİ: Bulunan son geçerli bulmacayı saklamak için
+
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       const baseWord = wordsByLength[Math.floor(Math.random() * wordsByLength.length)];
       const letters = [...baseWord];
@@ -76,34 +83,53 @@ function createPuzzle(difficulty: number): { letters: string[], words: string[] 
 
       const wordsArray = Array.from(constructibleSet);
 
-      // --- 1. ADIM: İÇ İÇE KELİME KONTROLÜ ---
+      // İç içe kelime kontrolü
       const filteredWords = wordsArray.filter(word => {
-        return !wordsArray.some(otherWord => 
+        return !wordsArray.some(otherWord =>
           otherWord !== word && otherWord.includes(word)
         );
       });
 
-      // --- 2. ADIM: FİLTRELENMİŞ KELİME SAYISI KONTROLÜ ---
+      // Filtrelenmiş kelime sayısı kontrolü
       if (filteredWords.length < MIN_WORD_COUNT || filteredWords.length > MAX_WORD_COUNT) {
         continue;
       }
 
-      // --- 3. ADIM: 3 HARFLİ KELİME KONTROLÜ ---
+      // 3 harfli kelime kontrolü
       const threeLetterWordCount = filteredWords.filter(w => w.length === 3).length;
       if (threeLetterWordCount > 2) {
         continue;
       }
 
-      // --- TÜM KONTROLLERDEN GEÇTİ, BULMACAYI OLUŞTUR ---
+      // YENİ: Geçerli bir bulmaca bulunduğunda...
       const finalWords = filteredWords.sort((a, b) => a.length - b.length || a.localeCompare(b));
-      
-      console.log(`✅ Bulmaca bulundu (attempt ${attempt + 1})`);
-      console.log(`Harfler: ${letters.join(', ')}`);
-      console.log(`Kelimeler (${finalWords.length}): ${finalWords.join(', ')}`);
-      console.log('-----------------------------');
+      lastFoundPuzzle = { letters, words: finalWords }; // Bu bulmacayı kaydet
 
-      return { letters, words: finalWords };
+      // ... ve eğer minimum deneme sayısını geçtiysek, daha fazla arama yapmadan bu bulmacayı döndür.
+      if (attempt >= MIN_ATTEMPTS) {
+        console.log(`✅ Bulmaca bulundu (attempt ${attempt + 1}, min deneme sayısını geçti)`);
+        sendToTelegram(`✅ Bulmaca bulundu (attempt ${attempt + 1}, min deneme sayısını geçti)`);
+        console.log(`Harfler: ${letters.join(', ')}`);
+        sendToTelegram(`Harfler: ${letters.join(', ')}`);
+        console.log(`Kelimeler (${lastFoundPuzzle.words.length}): ${lastFoundPuzzle.words.join(', ')}`);
+        sendToTelegram(`Kelimeler (${lastFoundPuzzle.words.length}): ${lastFoundPuzzle.words.join(', ')}`);
+        console.log('-----------------------------');
+        return lastFoundPuzzle;
+      }
     }
+
+    // YENİ: Döngü bittiğinde, eğer minimum deneme sayısına ulaşmadan önce bir bulmaca bulunduysa onu döndür.
+    if (lastFoundPuzzle) {
+        console.log(`✅ Bulmaca bulundu (döngü sonunda bulunan son geçerli bulmaca kullanıldı)`);
+        sendToTelegram(`✅ Bulmaca bulundu (döngü sonunda bulunan son geçerli bulmaca kullanıldı)`);
+        console.log(`Harfler: ${lastFoundPuzzle.letters.join(', ')}`);
+        sendToTelegram
+        console.log(`Kelimeler (${lastFoundPuzzle.words.length}): ${lastFoundPuzzle.words.join(', ')}`);
+        sendToTelegram(`Kelimeler (${lastFoundPuzzle.words.length}): ${lastFoundPuzzle.words.join(', ')}`);
+        console.log('-----------------------------');
+        return lastFoundPuzzle;
+    }
+
 
     console.error(`❌ Hiç uygun bulmaca bulunamadı (${MIN_WORD_COUNT}-${MAX_WORD_COUNT} kelime ve en fazla 2 adet 3 harfli kelime).`);
     return null;
@@ -111,7 +137,6 @@ function createPuzzle(difficulty: number): { letters: string[], words: string[] 
 
 // ------------------- Socket.IO Mantığı -------------------
 interface Player {
-  playerId: string;
   name: string;
   score: number;
   socketId: string;
@@ -120,35 +145,29 @@ interface Player {
 
 interface GameRoom {
   puzzle: { letters: string[], words: string[] };
-  players: { [playerId: string]: Player };
-  foundWords: { [word: string]: string };
+  players: { [playerName: string]: Player }; // İsim bazlı
+  foundWords: { [word: string]: string }; // word -> playerName
   difficulty: number;
 }
 
 const gameRooms: { [roomId: string]: GameRoom } = {};
 const emptyRoomTimers = new Map<string, NodeJS.Timeout>();
 const disconnectedPlayerTimers = new Map<string, NodeJS.Timeout>();
-const socketToPlayer = new Map<string, { roomId: string, playerId: string }>();
-
-// Benzersiz oyuncu ID oluştur
-function generatePlayerId(): string {
-  return `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
-
-// Oyuncu ismine 3 haneli rastgele sayı ekle
-function addRandomSuffixToName(name: string): string {
-  const randomNumber = Math.floor(Math.random() * 900) + 100; // 100-999 arası
-  return `${name}-${randomNumber}`;
-}
+// Socket ID -> RoomID ve PlayerName eşlemesi
+const socketToPlayer = new Map<string, { roomId: string, playerName: string }>();
 
 io.on('connection', (socket) => {
   console.log(`✨ Yeni bir kullanıcı bağlandı: ${socket.id}`);
+  sendToTelegram(`✨ Yeni bir kullanıcı bağlandı: ${socket.id}`);
+
+  // Oda oluşturma
 
   socket.on('createRoom', ({ difficulty, roomName, playerName }) => {
     if (emptyRoomTimers.has(roomName)) {
         clearTimeout(emptyRoomTimers.get(roomName)!);
         emptyRoomTimers.delete(roomName);
         console.log(`⏰ ${roomName} odası için kapatma sayacı iptal edildi.`);
+        sendToTelegram(`⏰ ${roomName} odası için kapatma sayacı iptal edildi.`);
     }
       
     if (gameRooms[roomName]) {
@@ -162,30 +181,29 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const playerId = generatePlayerId();
-    const displayName = addRandomSuffixToName(playerName);
-    
     gameRooms[roomName] = {
       puzzle,
       players: {
-        [playerId]: { playerId, name: displayName, score: 0, socketId: socket.id, isConnected: true }
+        [playerName]: { name: playerName, score: 0, socketId: socket.id, isConnected: true }
       },
       foundWords: {},
       difficulty: difficulty
     };
 
-    socketToPlayer.set(socket.id, { roomId: roomName, playerId });
+    socketToPlayer.set(socket.id, { roomId: roomName, playerName });
     socket.join(roomName);
     
-    console.log(`🚪 ${displayName} (${playerId}) kullanıcısı "${roomName}" odasını oluşturdu.`);
-    socket.emit('roomCreated', { roomId: roomName, playerId, puzzle, players: gameRooms[roomName].players });
+    console.log(`🚪 ${playerName} (${socket.id}) kullanıcısı "${roomName}" odasını oluşturdu.`);
+    sendToTelegram(`🚪 ${playerName} (${socket.id}) kullanıcısı "${roomName}" odasını oluşturdu.`);
+    socket.emit('roomCreated', { roomId: roomName, puzzle, players: gameRooms[roomName].players });
   });
 
-  socket.on('joinRoom', ({ roomId, playerName, playerId }) => {
+  socket.on('joinRoom', ({ roomId, playerName }) => {
     if (emptyRoomTimers.has(roomId)) {
         clearTimeout(emptyRoomTimers.get(roomId)!);
         emptyRoomTimers.delete(roomId);
         console.log(`⏰ ${roomId} odası için kapatma sayacı iptal edildi.`);
+        sendToTelegram(`⏰ ${roomId} odası için kapatma sayacı iptal edildi.`);
     }
 
     const room = gameRooms[roomId];
@@ -195,11 +213,11 @@ io.on('connection', (socket) => {
     }
 
     socket.join(roomId);
+    socketToPlayer.set(socket.id, { roomId, playerName });
 
-    // Eğer playerId verilmişse ve oyuncu odadaysa (yeniden bağlanma)
-    if (playerId && room.players[playerId]) {
-      const playerTimerKey = `${roomId}-${playerId}`;
-      
+    // Eğer oyuncu zaten odadaysa (yeniden bağlanma)
+    const playerTimerKey = `${roomId}-${playerName}`;
+    if (room.players[playerName]) {
       // Disconnect zamanlayıcısını iptal et
       if (disconnectedPlayerTimers.has(playerTimerKey)) {
         clearTimeout(disconnectedPlayerTimers.get(playerTimerKey)!);
@@ -207,26 +225,18 @@ io.on('connection', (socket) => {
       }
       
       // Socket ID'yi güncelle ve bağlantıyı aktif yap
-      room.players[playerId].socketId = socket.id;
-      room.players[playerId].isConnected = true;
-      socketToPlayer.set(socket.id, { roomId, playerId });
-      
-      console.log(`🔄 ${room.players[playerId].name} (${playerId}) "${roomId}" odasına geri döndü (Puan: ${room.players[playerId].score}).`);
-      
-      socket.emit('joinSuccess', { roomId, playerId });
+      room.players[playerName].socketId = socket.id;
+      room.players[playerName].isConnected = true;
+      console.log(`🔄 ${playerName} (${socket.id}) "${roomId}" odasına geri döndü (Puan: ${room.players[playerName].score}).`);
+      sendToTelegram(`🔄 ${playerName} (${socket.id}) "${roomId}" odasına geri döndü (Puan: ${room.players[playerName].score}).`);
     } else {
-      // Yeni oyuncu - yeni playerId oluştur ve isme rastgele sayı ekle
-      const newPlayerId = generatePlayerId();
-      const displayName = addRandomSuffixToName(playerName);
-      
-      room.players[newPlayerId] = { playerId: newPlayerId, name: displayName, score: 0, socketId: socket.id, isConnected: true };
-      socketToPlayer.set(socket.id, { roomId, playerId: newPlayerId });
-      
-      console.log(`➡️ ${displayName} (${newPlayerId}) "${roomId}" odasına katıldı.`);
-      
-      socket.emit('joinSuccess', { roomId, playerId: newPlayerId });
+      // Yeni oyuncu
+      room.players[playerName] = { name: playerName, score: 0, socketId: socket.id, isConnected: true };
+      console.log(`➡️ ${playerName} (${socket.id}) "${roomId}" odasına katıldı.`);
+      sendToTelegram(`➡️ ${playerName} (${socket.id}) "${roomId}" odasına katıldı.`);
     }
     
+    socket.emit('joinSuccess', { roomId });
     socket.emit('gameUpdate', {
         puzzle: room.puzzle,
         players: room.players,
@@ -245,14 +255,15 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const playerId = playerInfo.playerId;
-    room.players[playerId].score += normalizedWord.length;
-    room.foundWords[normalizedWord] = playerId;
+    const playerName = playerInfo.playerName;
+    room.players[playerName].score += normalizedWord.length;
+    room.foundWords[normalizedWord] = playerName;
 
     const allWordsFound = Object.keys(room.foundWords).length === room.puzzle.words.length;
 
     if (allWordsFound) {
       console.log(`🎉 "${roomId}" odasındaki bulmaca tamamlandı! Yeni bulmaca oluşturuluyor...`);
+      sendToTelegram(`🎉 "${roomId}" odasındaki bulmaca tamamlandı! Yeni bulmaca oluşturuluyor...`);
       const newPuzzle = createPuzzle(room.difficulty);
 
       if (newPuzzle) {
@@ -278,52 +289,57 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log(`👋 Kullanıcı ayrıldı: ${socket.id}`);
+    sendToTelegram(`👋 Kullanıcı ayrıldı: ${socket.id}`);
     
     const playerInfo = socketToPlayer.get(socket.id);
     if (!playerInfo) return;
 
-    const { roomId, playerId } = playerInfo;
+    const { roomId, playerName } = playerInfo;
     const room = gameRooms[roomId];
     
-    if (!room || !room.players[playerId]) return;
+    if (!room || !room.players[playerName]) return;
 
-    const player = room.players[playerId];
+    const player = room.players[playerName];
     player.isConnected = false;
     
-    console.log(`⏳ ${player.name} "${roomId}" odasından geçici olarak ayrıldı (Puan: ${player.score}). 5 dakika bekleniyor...`);
+    console.log(`⏳ ${playerName} "${roomId}" odasından geçici olarak ayrıldı (Puan: ${player.score}). 5 dakika bekleniyor...`);
+    sendToTelegram(`⏳ ${playerName} "${roomId}" odasından geçici olarak ayrıldı (Puan: ${player.score}). 5 dakika bekleniyor...`);
 
-    const playerTimerKey = `${roomId}-${playerId}`;
+    const playerTimerKey = `${roomId}-${playerName}`;
     const timer = setTimeout(() => {
-      if (gameRooms[roomId] && gameRooms[roomId].players[playerId] && !gameRooms[roomId].players[playerId].isConnected) {
-        const disconnectedPlayer = gameRooms[roomId].players[playerId];
-        delete gameRooms[roomId].players[playerId];
-        console.log(`🗑️ ${disconnectedPlayer.name} 5 dakika içinde geri dönmediği için "${roomId}" odasından çıkarıldı.`);
+      if (gameRooms[roomId] && gameRooms[roomId].players[playerName] && !gameRooms[roomId].players[playerName].isConnected) {
+        delete gameRooms[roomId].players[playerName];
+        console.log(`🗑️ ${playerName} 5 dakika içinde geri dönmediği için "${roomId}" odasından çıkarıldı.`);
+        sendToTelegram(`🗑️ ${playerName} 5 dakika içinde geri dönmediği için "${roomId}" odasından çıkarıldı.`);
         
         io.to(roomId).emit('playerLeft', { players: gameRooms[roomId].players });
         
         // Oda boş kaldıysa
         if (Object.keys(gameRooms[roomId].players).length === 0) {
           console.log(`🚪 ${roomId} odası boş. Kapatmak için 5 dakika sayacı başlatıldı.`);
+          sendToTelegram(`🚪 "${roomId}" odası boş. Kapatmak için 5 dakika sayacı başlatıldı.`);
           
           const roomTimer = setTimeout(() => {
             if (gameRooms[roomId] && Object.keys(gameRooms[roomId].players).length === 0) {
               delete gameRooms[roomId];
               console.log(`🗑️ ${roomId} odası 5 dakika boş kaldığı için kapatıldı.`);
+              sendToTelegram(`🗑️ "${roomId}" odası 5 dakika boş kaldığı için kapatıldı.`);
             }
             emptyRoomTimers.delete(roomId);
-          }, 300000);
+          }, 300000); // 5 dakika
     
           emptyRoomTimers.set(roomId, roomTimer);
         }
       }
       disconnectedPlayerTimers.delete(playerTimerKey);
-    }, 300000);
+    }, 300000); // 5 dakika
 
     disconnectedPlayerTimers.set(playerTimerKey, timer);
     socketToPlayer.delete(socket.id);
   });
 });
 
+// ------------------- REST API -------------------
 // Tek oyunculu mod için REST endpoint'i
 app.get('/api/v1/puzzles/random', (req, res) => {
     try {
@@ -336,12 +352,31 @@ app.get('/api/v1/puzzles/random', (req, res) => {
         return res.json(puzzle);
       }
       return res.status(500).json({ error: 'Uygun bir bulmaca oluşturulamadı. Lütfen tekrar deneyin.' });
-    } catch (err) {
+    } catch (err: any) {
       console.error('💥 Bulmaca oluşturulurken hata:', err);
+      sendToTelegram(`API Error: /api/v1/puzzles/random - ${err.message}`);
       return res.status(500).json({ error: 'Bulmaca oluşturulurken bir hata oluştu.' });
     }
 });
 
+// ------------------- Sunucuyu Başlatma -------------------
 httpServer.listen(port, HOST, () => {
-  console.log(`✅ Backend ${HOST}:${port} adresinde çalışıyor.`);
+  const startMessage = `✅ Backend ${HOST}:${port} adresinde çalışıyor.`;
+  console.log(startMessage);
+  sendToTelegram(startMessage);
+});
+
+// ------------------- Genel Hata Yakalama -------------------
+process.on('uncaughtException', (error) => {
+  console.error('UNCAUGHT EXCEPTION! 💥', error);
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  sendToTelegram(`*CRITICAL: Uncaught Exception*\n\`\`\`\n${errorMessage}\n\`\`\``).finally(() => {
+    process.exit(1);
+  });
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('UNHANDLED REJECTION! 💥', reason);
+  const reasonMessage = reason instanceof Error ? reason.message : String(reason);
+  sendToTelegram(`*CRITICAL: Unhandled Rejection*\n\`\`\`\n${reasonMessage}\n\`\`\``);
 });
