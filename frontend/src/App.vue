@@ -392,9 +392,9 @@ header { display: flex; align-items: center; justify-content: center; padding: 0
 .theme-switcher-container { position: relative; } /* Konumlandırma için eklendi */
 .theme-selector-popover { position: absolute; top: 50px; right: 0; background-color: var(--background-color); border: 1px solid var(--button-border); border-radius: 8px; padding: 0.5rem; z-index: 10; display: flex; flex-direction: column; gap: 0.5rem; } /* Flex özellikleri eklendi */
 .theme-option {
-  display: flex; /* DÜZELTME: Hizalama için flex eklendi */
-  align-items: center; /* DÜZELTME: Dikeyde ortalamak için eklendi */
-  gap: 0.75rem; /* DÜZELTME: Renk noktası ve metin arasına boşluk eklendi */
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   background: none;
   border: none;
   color: var(--text-color);
