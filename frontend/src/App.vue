@@ -236,7 +236,7 @@ onMounted(() => {
 const themes = [
   { name: 'Default', class: 'default', color: '#2c3e50' },
   { name: 'Blue', class: 'theme-baby-blue', color: '#A1C9F4' },
-  { name: 'Purple', class: 'theme-purple', color: '#4a148c' },
+  { name: 'Yaren', class: 'theme-purple', color: '#4a148c' },
   { name: 'Orange', class: 'theme-orange', color: '#e65100' },
   { name: 'Green', class: 'theme-walnut-green', color: '#556B2F' },
 

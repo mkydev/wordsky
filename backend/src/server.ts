@@ -172,6 +172,8 @@ io.on('connection', (socket) => {
       
     if (gameRooms[roomName]) {
       socket.emit('error', { message: `"${roomName}" isminde bir oda zaten mevcut.` });
+      console.log(`❗ "${roomName}" isminde bir oda zaten mevcut.`);
+      sendToTelegram(`❗ "${roomName}" isminde bir oda zaten mevcut.`);
       return;
     }
 
