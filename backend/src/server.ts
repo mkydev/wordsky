@@ -436,6 +436,10 @@ io.on('connection', (socket) => {
   });
 });
 
+app.get('/', (req, res) => {
+  res.status(200).send('OK');
+});
+
 // ------------------- REST API -------------------
 app.get('/api/v1/puzzles/random', (req, res) => {
     try {
