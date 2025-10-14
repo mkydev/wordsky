@@ -70,7 +70,8 @@ async function createNewPuzzle(diff: 4 | 5 | 6 | 7) {
   apiWords.value = [];
 
   try {
-    const response = await fetch(`${apiUrl}/api/v1/puzzles/random?difficulty=${diff}`);
+    const fullUrl = `${apiUrl.replace(/\/$/, '')}/api/v1/puzzles/random?difficulty=${diff}`;
+    const response = await fetch(fullUrl);
     if (!response.ok) {
         const errData = await response.json();
         throw new Error(errData.error || 'Bulmaca oluşturulamadı.');
