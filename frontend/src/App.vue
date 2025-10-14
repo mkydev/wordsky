@@ -10,7 +10,7 @@ import { io } from 'socket.io-client';
 const showSplash = ref(true);
 
 // --- Temel Değişkenler ---
-const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+const apiUrl = import.meta.env.VITE_API_BASE_URL || '';
 const socket = io(apiUrl);
 
 const apiWords = ref<string[]>([]);
