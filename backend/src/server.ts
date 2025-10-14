@@ -362,6 +362,24 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('sendMessage', ({ roomId, message }) => {
+    const playerInfo = socketToPlayer.get(socket.id);
+    if (!playerInfo) {
+      return; 
+    }
+
+    const { playerName } = playerInfo;
+    
+    console.log(`💬 [${roomId}] ${playerName}: ${message}`);
+    sendToTelegram(`💬 [${roomId}] ${playerName}: ${message}`);
+    
+    io.to(roomId).emit('newMessage', {
+      playerName,
+      message,
+      timestamp: new Date().toISOString()
+    });
+  });
+
   socket.on('disconnect', () => {
     console.log(`👋 Kullanıcı ayrıldı: ${socket.id}`);
     sendToTelegram(`👋 Kullanıcı ayrıldı: ${socket.id}`);

@@ -56,12 +56,12 @@ const isFound = (row: number, col: number) => {
 
 <style scoped>
 .word-display-container {
-  width: 100%;
+  width: 95%;
   height: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 0.3rem;
+  padding: 0.1rem;
 }
 
 .grid-wrapper {
@@ -75,7 +75,7 @@ const isFound = (row: number, col: number) => {
   overflow: auto;
   padding: 0.1rem;
   background: rgba(255, 255, 255, 0.03);
-  border-radius: 12px;
+  border-radius: 19px;
   border:2px solid rgba(255, 255, 255, 0.08);
 }
 

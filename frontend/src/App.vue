@@ -39,6 +39,9 @@ const multiplayerFoundWords = ref<Record<string, string>>({});
 const showGameInfoPopup = ref(false);
 const copied = ref(false);
 const isTransitioningToNextRound = ref(false);
+const isChatOpen = ref(false);
+const messages = ref<{ playerName: string, message: string, timestamp: string }[]>([]);
+const newMessage = ref('');
 
 // --- Crossword ve Kelime Yönetimi ---
 const { grid, placedWords } = useCrossword(computed(() => apiWords.value));
@@ -77,6 +80,7 @@ async function createNewPuzzle(diff: 4 | 5 | 6 | 7) {
       throw new Error('Bu zorlukta uygun bir bulmaca bulunamadı, lütfen tekrar deneyin.');
     }
     letters.value = data.letters;
+    shuffleLetters();
     apiWords.value = data.words;
   } catch (e) {
     error.value = (e as Error).message;
@@ -137,7 +141,12 @@ function goBackToMenu() {
   multiplayerFoundWords.value = {};
   localFoundWords.value = [];
   error.value = null;
+  messages.value = [];
 }
+
+watch(roomId, () => {
+  messages.value = [];
+});
 
 watch(currentSelectedWord, (newWord: string) => {
   if (!newWord || !words.value.includes(newWord.toUpperCase()) || foundWords.value.includes(newWord.toUpperCase())) {
@@ -171,6 +180,16 @@ function shuffleLetters() {
   }
 }
 
+function sendMessage() {
+  if (newMessage.value.trim() && roomId.value) {
+    socket.emit('sendMessage', {
+      roomId: roomId.value,
+      message: newMessage.value.trim(),
+    });
+    newMessage.value = '';
+  }
+}
+
 // --- Socket ve Lifecycle Olayları ---
 onMounted(() => {
   setTimeout(() => {
@@ -186,6 +205,7 @@ onMounted(() => {
   socket.on('roomCreated', (data) => {
     roomId.value = data.roomId;
     letters.value = data.puzzle.letters;
+    shuffleLetters();
     apiWords.value = data.puzzle.words;
     players.value = data.players;
     gameStarted.value = true;
@@ -195,6 +215,7 @@ onMounted(() => {
   socket.on('gameUpdate', (data) => {
     if (!gameStarted.value) {
       letters.value = data.puzzle.letters;
+      shuffleLetters();
       apiWords.value = data.puzzle.words;
       gameStarted.value = true;
     }
@@ -208,6 +229,7 @@ onMounted(() => {
 
     setTimeout(() => {
       letters.value = data.puzzle.letters;
+      shuffleLetters();
       apiWords.value = data.puzzle.words;
       players.value = data.players;
       multiplayerFoundWords.value = {};
@@ -221,6 +243,10 @@ onMounted(() => {
   socket.on('joinSuccess', (data) => { roomId.value = data.roomId; });
   socket.on('playerJoined', (data) => { players.value = data.players; });
   socket.on('playerLeft', (data) => { players.value = data.players; });
+
+  socket.on('newMessage', (message) => {
+    messages.value.push(message);
+  });
 
   socket.on('error', (data) => {
     error.value = data.message;
@@ -376,6 +402,34 @@ watch(currentThemeIndex, (newIndex) => {
             <div class="right-panel">
                 <div class="letter-circle-section">
                     <LetterCircle :letters="letters" v-model:current-selected-word="currentSelectedWord" @shuffle="shuffleLetters" />
+                    <div class="chat-bubble-container">
+                      <button v-if="isMultiplayer" @click="isChatOpen = !isChatOpen" class="chat-bubble-button">
+                        <span class="chat-icon">💬</span>
+                      </button>
+                    </div>
+                </div>
+
+                <div v-if="isChatOpen" class="chat-popup-overlay" @click.self="isChatOpen = false">
+                  <div v-if="isMultiplayer" class="chat-container">
+                    <div class="chat-header">
+                      <h3>Sohbet</h3>
+                      <button @click="isChatOpen = false" class="close-chat-btn">×</button>
+                    </div>
+                    <div class="chat-body">
+                      <div v-for="(msg, index) in messages" :key="index" class="message" :class="{ 'my-message': msg.playerName === playerName }">
+                        <div class="message-sender" v-if="msg.playerName !== playerName">{{ msg.playerName }}</div>
+                        <div class="message-content">{{ msg.message }}</div>
+                        <div class="message-time">{{ new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</div>
+                      </div>
+                      <div v-if="messages.length === 0" class="no-messages">
+                        Henüz hiç mesaj yok.
+                      </div>
+                    </div>
+                    <div class="chat-footer">
+                      <input type="text" v-model="newMessage" placeholder="Mesajını yaz..." class="chat-input" @keyup.enter="sendMessage" />
+                      <button @click="sendMessage" class="send-btn">Gönder</button>
+                    </div>
+                  </div>
                 </div>
             </div>
           </div>
@@ -446,9 +500,165 @@ h1 { font-size: clamp(1.1rem, 4.5vw, 1.8rem); margin: 0; text-align: center; fle
 .difficulty-btn-mp { background: var(--button-bg); border: 1px solid var(--button-border); color: var(--text-color); padding: 0.8rem 1rem; border-radius: 8px; font-size: 1rem; cursor: pointer; flex-grow: 1; }
 .game-area { flex-grow: 1; display: flex; flex-direction: column; min-height: 0; }
 .game-container { display: flex; flex-direction: column; flex: 1; gap: 0.5rem; padding: 0 0.5rem 0.5rem 0.5rem; min-height: 0; overflow: hidden; }
-.word-display-section { flex: 0 1 auto; width: 100%; max-height: 45vh; display: flex; justify-content: center; align-items: center; overflow: hidden; }
-.right-panel { display: flex; flex-direction: column; gap: 1rem; flex-grow: 1; justify-content: center;}
-.letter-circle-section { flex: 0 0 auto; width: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 0.5rem; }
+.word-display-section { flex: 0 1 auto; width: 100%; max-height: 55vh; display: flex; justify-content: center; align-items: center; overflow: hidden; padding-top: 0.1rem; }
+.right-panel { display: flex; flex-direction: column; gap: 1rem; flex-grow: 1; }
+.letter-circle-section { flex-shrink: 0; position: relative; }
+
+/* Chat Bubble Stilleri */
+.chat-bubble-container {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 10;
+}
+.chat-bubble-button {
+  background-color: var(--success-color);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 1.2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+
+/* Chat Popup Stilleri */
+.chat-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+  padding: 1rem;
+}
+
+.chat-container {
+  width: 100%;
+  max-width: 500px;
+  height: 70vh;
+  max-height: 600px;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--background-color-soft);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--button-border);
+}
+
+@media (max-width: 768px) {
+  .chat-container {
+    height: 80vh;
+    max-height: 500px;
+  }
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background-color: var(--background-color);
+  border-bottom: 1px solid var(--button-border);
+}
+
+.chat-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.close-chat-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+.chat-body {
+  flex-grow: 1;
+  padding: 0.75rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.message {
+  display: flex;
+  flex-direction: column;
+  max-width: 80%;
+  width: fit-content;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  background-color: var(--button-bg);
+  align-self: flex-start;
+}
+.message.my-message {
+  align-self: flex-end;
+  background-color: var(--success-color);
+  color: white;
+}
+.message-sender {
+  font-size: 0.75rem;
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+  color: var(--text-color-muted);
+}
+.my-message .message-sender {
+  display: none;
+}
+.message-content {
+  font-size: 0.9rem;
+  word-wrap: break-word;
+}
+.message-time {
+  font-size: 0.7rem;
+  align-self: flex-end;
+  margin-top: 0.2rem;
+  opacity: 0.7;
+}
+.no-messages {
+  text-align: center;
+  color: var(--text-color-muted);
+  font-size: 0.9rem;
+  margin: auto;
+}
+.chat-footer {
+  display: flex;
+  padding: 0.5rem;
+  border-top: 1px solid var(--button-border);
+  gap: 0.5rem;
+}
+.chat-input {
+  flex-grow: 1;
+  border: none;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  padding: 0.6rem;
+  border-radius: 8px;
+  font-size: 16px; /* Prevent mobile zoom */
+}
+.chat-input:focus {
+  outline: 1px solid var(--success-color);
+}
+.send-btn {
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 8px;
+  background-color: var(--success-color);
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
 .loading, .error { text-align: center; padding: 2rem; font-size: 1.2rem; color: var(--error-color); }
 .success-message { text-align: center; margin: 2rem; }
 .success-message h2 { font-size: 1.8rem; color: var(--success-color); }
