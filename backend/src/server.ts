@@ -18,7 +18,7 @@ const io = new Server(httpServer, {
   }
 });
 
-const port = process.env.PORT || 3000;
+const port = 3000;
 const HOST = '0.0.0.0';
 
 // ------------------- Helper Fonksiyonları -------------------
