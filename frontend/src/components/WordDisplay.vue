@@ -61,7 +61,7 @@ const isFound = (row: number, col: number) => {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 0.5rem;
+  padding: 0.3rem;
 }
 
 .grid-wrapper {

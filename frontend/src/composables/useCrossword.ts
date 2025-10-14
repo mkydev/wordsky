@@ -18,6 +18,21 @@ function copyGrid(grid: (string | null)[][]): (string | null)[][] {
 }
 
 /**
+ * Kelimede yanyana iki sesli harf olup olmadığını kontrol eder.
+ * Türkçe sesli harfler: A, E, I, İ, O, Ö, U, Ü
+ */
+function hasConsecutiveVowels(word: string): boolean {
+  const vowels = new Set(['A', 'E', 'I', 'İ', 'O', 'Ö', 'U', 'Ü']);
+  for (let i = 0; i < word.length - 1; i++) {
+    // DÜZELTME: .charAt() metodu, 'undefined' tip hatasını önler.
+    if (vowels.has(word.charAt(i)) && vowels.has(word.charAt(i + 1))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Bir kelimenin belirtilen konuma yerleştirilip yerleştirilemeyeceğini kontrol eder.
  * Kesişim, bitişiklik ve sınırlar gibi kuralları uygular.
  */
@@ -148,7 +163,8 @@ export function useCrossword(words: ComputedRef<string[]>) {
     try {
       const validWords = words.value
         .filter((w): w is string => typeof w === 'string' && w.length > 0)
-        .map(w => w.toUpperCase());
+        .map(w => w.toUpperCase())
+        .filter(w => !hasConsecutiveVowels(w)); // Yanyana sesli harf içermeyenleri filtrele
 
       if (validWords.length === 0) {
         return { grid: [], placedWords: [] };
@@ -176,12 +192,10 @@ export function useCrossword(words: ComputedRef<string[]>) {
 
       if (!finalPlacedWords || finalPlacedWords.length !== sortedWords.length) {
         console.warn('Tüm kelimelerle geçerli bir bulmaca oluşturulamadı. Lütfen kelime setini kontrol edin.');
-        // Başarısız olursa, tekrar dene (opsiyonel, basit bir tekrar deneme)
-        // Genellikle kelime setinin kendisi uyumsuzdur.
         return { grid: [], placedWords: [] };
       }
 
-      // --- Izgarayı Kırpma ---
+      // --- Ízgarayı Kırpma ---
       const finalGrid = Array(gridSize).fill(null).map(() => Array(gridSize).fill(null));
       finalPlacedWords.forEach(p => placeWord(p.word, p.row, p.col, p.horizontal, finalGrid));
 
@@ -208,7 +222,7 @@ export function useCrossword(words: ComputedRef<string[]>) {
         ...pWord,
         row: pWord.row - minRow,
         col: pWord.col - minCol,
-      })).sort((a,b) => a.word.localeCompare(b.word)); // Kelimeleri alfabetik sırala
+      })).sort((a, b) => a.word.localeCompare(b.word)); // Kelimeleri alfabetik sırala
 
       return { grid: trimmedGrid, placedWords: trimmedPlacedWords };
 
