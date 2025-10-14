@@ -55,7 +55,6 @@ function setPlayerName() {
   if (tempPlayerName.value.trim()) {
     playerName.value = tempPlayerName.value.trim();
     localStorage.setItem('wordsky_playerName', playerName.value);
-    socket.emit('playerNameCreated', playerName.value); // Loglama için backend'e olay gönder
     showNameInput.value = false;
   }
 }

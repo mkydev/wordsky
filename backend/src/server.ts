@@ -242,11 +242,6 @@ io.on('connection', (socket) => {
   console.log(`✨ Yeni bir kullanıcı bağlandı: ${socket.id}`);
   sendToTelegram(`✨ Yeni bir kullanıcı bağlandı: ${socket.id}`);
 
-  socket.on('playerNameCreated', (playerName: string) => {
-    console.log(`👤 ${playerName} adında bir oyuncu giriş yaptı.`);
-    sendToTelegram(`👤 Oyuncu giriş yaptı: ${playerName}`);
-  });
-
   socket.on('createRoom', ({ difficulty, roomName, playerName }) => {
     if (emptyRoomTimers.has(roomName)) {
         clearTimeout(emptyRoomTimers.get(roomName)!);
@@ -434,10 +429,6 @@ io.on('connection', (socket) => {
     disconnectedPlayerTimers.set(playerTimerKey, timer);
     socketToPlayer.delete(socket.id);
   });
-});
-
-app.get('/', (req, res) => {
-  res.status(200).send('OK');
 });
 
 // ------------------- REST API -------------------
