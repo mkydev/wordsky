@@ -126,7 +126,7 @@ function getRandomLetters(difficulty: number): string[] {
 
 function createPuzzle(difficulty: number): { letters: string[], words: string[] } | null {
     const MIN_WORD_COUNT = 4;
-    const MAX_WORD_COUNT = 12;
+    const MAX_WORD_COUNT = 8;
     const MAX_ATTEMPTS = 5000;
 
     let attempts = 0;
