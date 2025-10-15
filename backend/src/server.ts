@@ -163,8 +163,8 @@ function createPuzzle(difficulty: number): { letters: string[], words: string[] 
 
     console.log(`✅ Bulmaca oluşturuldu. Temel kelime: ${bestPuzzle.letters.join('')}`);
     sendToTelegram(`✅ Bulmaca: ${bestPuzzle.letters.join('')} (${finalWords.length} kelime)`);
-    console.log(`   Kelimeler: ${finalWords.join(', ')}`);
-    sendToTelegram(`   Kelimeler: ${finalWords.join(', ')}`);
+    console.log(`🧩 Kelimeler: ${finalWords.join(', ')}`);
+    sendToTelegram(`🧩 Kelimeler: ${finalWords.join(', ')}`);
     
 
     return { letters: bestPuzzle.letters, words: finalWords };
