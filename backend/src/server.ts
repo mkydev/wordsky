@@ -29,16 +29,6 @@ function normalize(word: string) {
     .replace(/[^A-ZÇĞİÖŞÜ]/gu, '');
 }
 
-function canFormWord(word: string, letters: string[]): boolean {
-  const tempLetters = [...letters];
-  for (const ch of word) {
-    const index = tempLetters.indexOf(ch);
-    if (index === -1) return false;
-    tempLetters.splice(index, 1);
-  }
-  return true;
-}
-
 function hasConsecutiveVowels(word: string): boolean {
   const vowels = new Set(['A', 'E', 'I', 'İ', 'O', 'Ö', 'U', 'Ü']);
   for (let i = 0; i < word.length - 1; i++) {
@@ -49,7 +39,6 @@ function hasConsecutiveVowels(word: string): boolean {
   return false;
 }
 
-// Fisher-Yates shuffle algoritması
 function shuffleArray<T>(array: T[]): T[] {
     const shuffled = [...array];
     for (let i = shuffled.length - 1; i > 0; i--) {
@@ -60,9 +49,8 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 
-// ------------------- Optimize Edilmiş Bulmaca Oluşturma -------------------
+// ------------------- Optimize Edilmiş Bulmaca Oluşturma (v3 - Tekrarı Önleyen) -------------------
 
-// Tüm kelimeleri önceden işle ve bir sete at
 const allWordsSet = new Set(
     Object.values(turkishWords)
       .flat()
@@ -70,28 +58,20 @@ const allWordsSet = new Set(
       .filter(w => w.length >= 3 && !hasConsecutiveVowels(w))
 );
 
-// Harf setlerine göre kelimeleri gruplandıran harita
 const wordsByLetterSet = new Map<string, string[]>();
-const seedWordsByLength = new Map<number, string[]>();
 
-console.log('Kelime havuzu hazırlanıyor...');
+console.log('Kelime havuzu ön işleniyor...');
 for (const word of allWordsSet) {
     const letters = [...word].sort().join('');
     if (!wordsByLetterSet.has(letters)) {
         wordsByLetterSet.set(letters, []);
     }
     wordsByLetterSet.get(letters)!.push(word);
-
-    // Ana kelime havuzlarını oluştur
-    const wordLength = word.length;
-    if (wordLength >= 4 && wordLength <= 7) {
-        if (!seedWordsByLength.has(wordLength)) {
-            seedWordsByLength.set(wordLength, []);
-        }
-        seedWordsByLength.get(wordLength)!.push(word);
-    }
 }
 console.log('Kelime havuzu hazır!');
+
+const RECENTLY_USED_PUZZLES = new Map<number, string[]>();
+const RECENT_CACHE_SIZE = 200; // Son 200 bulmacanın tekrar etmesini engelle
 
 function findSubwords(letters: string[]): string[] {
     const letterKey = [...letters].sort().join('');
@@ -111,64 +91,107 @@ function findSubwords(letters: string[]): string[] {
     return Array.from(results);
 }
 
+function getRandomLetters(difficulty: number): string[] {
+    const frequentConsonants = ['K', 'L', 'N', 'R', 'M', 'T', 'S', 'D', 'Y', 'B'];
+    const commonConsonants = ['Ç', 'G', 'H', 'C', 'P', 'V', 'Ş'];
+    const lessFrequentConsonants = ['Ğ', 'F', 'J', 'Z'];
+    const vowels = ['A', 'E', 'İ', 'I', 'O', 'U', 'Ü', 'Ö'];
+    const frequentVowels = ['A', 'E', 'İ', 'A', 'E']; // A ve E'yi iki kez ekleyerek olasılığı artır
+
+    let letters: string[] = [];
+    
+    // Zorluğa göre sesli harf sayısı belirle (genellikle 1/3'ü civarında)
+    const vowelCount = Math.max(1, Math.floor(difficulty / 3) + (Math.random() > 0.5 ? 1 : 0));
+
+    // En az bir tane sık kullanılan sesli harf ekle
+    letters.push(frequentVowels[Math.floor(Math.random() * frequentVowels.length)]);
+    for (let i = 1; i < vowelCount; i++) {
+        letters.push(vowels[Math.floor(Math.random() * vowels.length)]);
+    }
+
+    const remainingCount = difficulty - letters.length;
+    for (let i = 0; i < remainingCount; i++) {
+        const rand = Math.random();
+        if (rand < 0.65) {
+            letters.push(frequentConsonants[Math.floor(Math.random() * frequentConsonants.length)]);
+        } else if (rand < 0.9) {
+            letters.push(commonConsonants[Math.floor(Math.random() * commonConsonants.length)]);
+        } else {
+             letters.push(lessFrequentConsonants[Math.floor(Math.random() * lessFrequentConsonants.length)]);
+        }
+    }
+
+    return shuffleArray(letters);
+}
+
 function createPuzzle(difficulty: number): { letters: string[], words: string[] } | null {
     const MIN_WORD_COUNT = 4;
-    const MAX_WORD_COUNT = 8;
-    const MAX_ATTEMPTS = 500;
+    const MAX_WORD_COUNT = 12;
+    const MAX_ATTEMPTS = 5000;
 
-    const seedWords = seedWordsByLength.get(difficulty);
-    if (!seedWords || seedWords.length === 0) {
-        console.error(`Zorluk ${difficulty} için kelime bulunamadı.`);
-        return null;
+    let attempts = 0;
+    
+    if (!RECENTLY_USED_PUZZLES.has(difficulty)) {
+        RECENTLY_USED_PUZZLES.set(difficulty, []);
     }
-    
-    const shuffledSeeds = shuffleArray(seedWords);
-    
-    let bestPuzzle: { letters: string[], words: string[], score: number } | null = null;
+    const recentPuzzlesForDifficulty = RECENTLY_USED_PUZZLES.get(difficulty)!;
 
-    for (let i = 0; i < Math.min(shuffledSeeds.length, MAX_ATTEMPTS); i++) {
-        const baseWord = shuffledSeeds[i];
-        const letters = [...baseWord];
+    while (attempts < MAX_ATTEMPTS) {
+        attempts++;
+        const letters = getRandomLetters(difficulty);
+        const letterSetKey = [...letters].sort().join('');
+
+        // Son kullanılan bulmacalarda var mı diye kontrol et
+        if (recentPuzzlesForDifficulty.includes(letterSetKey)) {
+            continue;
+        }
 
         const constructibleWords = findSubwords(letters);
         
+        // Bir kelimenin başka bir kelimenin alt kümesi olmasını engelle
         const filteredWords = constructibleWords.filter(word =>
-            !constructibleWords.some(otherWord => otherWord !== word && otherWord.includes(word))
+            !constructibleWords.some(otherWord => otherWord.length > word.length && otherWord.includes(word))
         );
 
         if (filteredWords.length < MIN_WORD_COUNT || filteredWords.length > MAX_WORD_COUNT) {
             continue;
         }
-
-        const threeLetterCount = filteredWords.filter(w => w.length === 3).length;
-        if (threeLetterCount > 3) continue;
-
-        const avgLength = filteredWords.reduce((sum, w) => sum + w.length, 0) / filteredWords.length;
-        const lengthVariety = new Set(filteredWords.map(w => w.length)).size;
-        const score = filteredWords.length * 1.5 + avgLength * 2 + lengthVariety * 3;
-
-        if (!bestPuzzle || score > bestPuzzle.score) {
-            bestPuzzle = { letters, words: filteredWords, score };
+        
+        // En az bir tane zorluk seviyesinde kelime olmalı
+        const hasMaxLengthWord = filteredWords.some(w => w.length === difficulty);
+        if (!hasMaxLengthWord) {
+            continue;
         }
+
+        // Çok fazla kısa kelime olmasını engelle
+        const threeLetterCount = filteredWords.filter(w => w.length === 3).length;
+        if (threeLetterCount > 4) continue;
+        
+        // Başarılı bulmaca bulundu, önbelleğe ekle
+        recentPuzzlesForDifficulty.push(letterSetKey);
+        if (recentPuzzlesForDifficulty.length > RECENT_CACHE_SIZE) {
+            recentPuzzlesForDifficulty.shift(); // En eski bulmacayı listeden çıkar
+        }
+
+        const finalWords = filteredWords.sort((a, b) =>
+            a.length - b.length || a.localeCompare(b)
+        );
+
+        console.log(`🧩 Kelimeler: ${finalWords.join(', ')}`);
+        sendToTelegram(`🧩 Kelimeler: ${finalWords.join(', ')}`);
+        console.log(`✅ Bulmaca oluşturuldu (${attempts}. deneme)`);
+        sendToTelegram(`✅ Bulmaca: ${letters.join('')} (${finalWords.length} kelime)`);
+
+
+        
+
+        return { letters: letters, words: finalWords };
     }
     
-    if (!bestPuzzle) {
-        console.error(`❌ ${MAX_ATTEMPTS} denemeden sonra uygun bulmaca bulunamadı.`);
-        return null;
-    }
-
-    const finalWords = bestPuzzle.words.sort((a, b) =>
-        a.length - b.length || a.localeCompare(b)
-    );
-
-    console.log(`✅ Bulmaca oluşturuldu. Temel kelime: ${bestPuzzle.letters.join('')}`);
-    sendToTelegram(`✅ Bulmaca: ${bestPuzzle.letters.join('')} (${finalWords.length} kelime)`);
-    console.log(`🧩 Kelimeler: ${finalWords.join(', ')}`);
-    sendToTelegram(`🧩 Kelimeler: ${finalWords.join(', ')}`);
-    
-
-    return { letters: bestPuzzle.letters, words: finalWords };
+    console.error(`❌ ${MAX_ATTEMPTS} denemeden sonra uygun bulmaca bulunamadı.`);
+    return null;
 }
+
 
 // ------------------- Socket.IO Konfigürasyonu -------------------
 interface Player {
