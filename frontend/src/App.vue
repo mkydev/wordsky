@@ -262,10 +262,10 @@ onMounted(() => {
 // --- Tema Yönetimi ---
 const themes = [
   { name: 'Default', class: 'default', color: '#2c3e50' },
-  { name: 'Blue', class: 'theme-baby-blue', color: '#A1C9F4' },
+  { name: 'Sky', class: 'theme-baby-blue', color: '#A1C9F4' },
   { name: 'Yaren', class: 'theme-purple', color: '#4a148c' },
-  { name: 'Orange', class: 'theme-orange', color: '#e65100' },
-  { name: 'Green', class: 'theme-walnut-green', color: '#556B2F' },
+  { name: 'Oranje', class: 'theme-orange', color: '#e65100' },
+  { name: 'Walnut', class: 'theme-walnut-green', color: '#556B2F' },
 
 
 ];
