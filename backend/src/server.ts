@@ -67,10 +67,7 @@ function generateWordsFromLetters(
   return foundWords;
 }
 
-// ------------------- Türkçe Harf Frekansına Dayalı Kelime Kalitesi ve Çeşitlilik Mekanizması -------------------
-// Türkçede en sık kullanılan harfler (frekans analizi sonuçları):
-// A(11.68%), E(9.01%), İ(8.95%), N(7.15%), R(6.85%), L(5.92%), K(5.15%), M(3.76%), D(3.57%), T(3.02%)
-
+// ------------------- İYİLEŞTİRİLMİŞ: Kelime Havuzu ve Çeşitlilik -------------------
 const LETTER_SCORES: { [key: string]: number } = {
     'A': 12,   // En yüksek frekans
     'E': 9,
@@ -103,17 +100,44 @@ const LETTER_SCORES: { [key: string]: number } = {
     'J': -10
 };
 
-function getWordScore(word: string): number {
-    let score = 0;
-    const uniqueLetters = new Set<string>();
-    for (const char of word) {
-        score += LETTER_SCORES[char] || 0;
-        uniqueLetters.add(char);
-    }
-    score += uniqueLetters.size * 3;
-    return score;
+interface WordStats {
+  word: string;
+  score: number;
+  uniqueLetterCount: number;
+  vowelConsonantRatio: number;
 }
 
+// Gelişmiş kelime skoru hesaplama
+function getAdvancedWordScore(word: string): WordStats {
+  let score = 0;
+  const uniqueLetters = new Set<string>();
+  const vowels = new Set(['A', 'E', 'I', 'İ', 'O', 'Ö', 'U', 'Ü']);
+  let vowelCount = 0;
+
+  for (const char of word) {
+    score += LETTER_SCORES[char] || 0;
+    uniqueLetters.add(char);
+    if (vowels.has(char)) vowelCount++;
+  }
+
+  // Bonus puanlar
+  score += uniqueLetters.size * 5; // Çeşitlilik bonusu artırıldı
+  
+  // Sesli-sessiz dengesi bonusu (ideal: ~40% sesli)
+  const vowelRatio = vowelCount / word.length;
+  const idealVowelRatio = 0.4;
+  const balanceBonus = 10 * (1 - Math.abs(vowelRatio - idealVowelRatio));
+  score += balanceBonus;
+
+  return {
+    word,
+    score,
+    uniqueLetterCount: uniqueLetters.size,
+    vowelConsonantRatio: vowelRatio
+  };
+}
+
+// Tüm kelimeleri normalize et ve filtrele
 const allWordsSet = new Set(
     Object.values(turkishWords)
       .flat()
@@ -122,100 +146,184 @@ const allWordsSet = new Set(
 );
 const allWordsArray = Array.from(allWordsSet);
 
-const scoredWords = allWordsArray.map(word => ({ word, score: getWordScore(word) }));
-scoredWords.sort((a, b) => b.score - a.score);
+// Kelime havuzunu daha dengeli katmanlara ayır
+const allWordsStats = allWordsArray.map(getAdvancedWordScore);
+allWordsStats.sort((a, b) => b.score - a.score);
 
-const wordCount = scoredWords.length;
-const tier1Boundary = Math.floor(wordCount * 0.20);
-const tier2Boundary = Math.floor(wordCount * 0.60);
-
-const tier1BaseWords = scoredWords.slice(0, tier1Boundary).map(item => item.word);
-const tier2BaseWords = scoredWords.slice(tier1Boundary, tier2Boundary).map(item => item.word);
-const tier3BaseWords = scoredWords.slice(tier2Boundary).map(item => item.word);
-
-console.log(`Kelime havuzu hazırlandı: ${tier1BaseWords.length} yüksek, ${tier2BaseWords.length} orta, ${tier3BaseWords.length} normal kalite kelime.`);
-
-const RECENTLY_USED_BASE_WORDS_CACHE: string[] = [];
-const CACHE_SIZE_LIMIT = 250;
-
-function addWordToCache(word: string) {
-    if (RECENTLY_USED_BASE_WORDS_CACHE.length >= CACHE_SIZE_LIMIT) {
-        RECENTLY_USED_BASE_WORDS_CACHE.shift();
-    }
-    RECENTLY_USED_BASE_WORDS_CACHE.push(word);
+// Zorluk bazlı havuzlar oluştur
+const wordsByLength: Map<number, WordStats[]> = new Map();
+for (const ws of allWordsStats) {
+  if (!wordsByLength.has(ws.word.length)) {
+    wordsByLength.set(ws.word.length, []);
+  }
+  wordsByLength.get(ws.word.length)!.push(ws);
 }
 
-// ------------------- GÜNCELLENMIŞ: Bulmaca Oluşturma Fonksiyonu -------------------
+// Her uzunluk için tier'ları ayır
+const tiersByLength: Map<number, { tier1: string[], tier2: string[], tier3: string[] }> = new Map();
+for (const [length, words] of wordsByLength) {
+  const count = words.length;
+  const t1Boundary = Math.floor(count * 0.25);
+  const t2Boundary = Math.floor(count * 0.65);
+
+  tiersByLength.set(length, {
+    tier1: words.slice(0, t1Boundary).map(w => w.word),
+    tier2: words.slice(t1Boundary, t2Boundary).map(w => w.word),
+    tier3: words.slice(t2Boundary).map(w => w.word)
+  });
+}
+
+console.log('Kelime havuzu hazırlandı:');
+for (const [length, tiers] of tiersByLength) {
+  console.log(`  ${length} harf: ${tiers.tier1.length} üst, ${tiers.tier2.length} orta, ${tiers.tier3.length} alt kalite`);
+}
+
+// Önbellek boyutunu artır ve zorluk bazlı yap
+const RECENTLY_USED_CACHE = new Map<number, Set<string>>();
+const CACHE_SIZE_LIMIT = 1500; // 250'den 1500'e çıkarıldı
+
+function addToCache(difficulty: number, word: string) {
+  if (!RECENTLY_USED_CACHE.has(difficulty)) {
+    RECENTLY_USED_CACHE.set(difficulty, new Set());
+  }
+  
+  const cache = RECENTLY_USED_CACHE.get(difficulty)!;
+  cache.add(word);
+  
+  // Önbellek doluysa en eski %20'yi temizle
+  if (cache.size > CACHE_SIZE_LIMIT) {
+    const toRemove = Math.floor(CACHE_SIZE_LIMIT * 0.2);
+    const entries = Array.from(cache);
+    for (let i = 0; i < toRemove; i++) {
+      cache.delete(entries[i]!);
+    }
+  }
+}
+
+function isInCache(difficulty: number, word: string): boolean {
+  return RECENTLY_USED_CACHE.get(difficulty)?.has(word) ?? false;
+}
+
+// ------------------- GÜNCELLENMIŞ: Akıllı Bulmaca Oluşturma -------------------
 
 function createPuzzle(difficulty: number): { letters: string[], words: string[] } | null {
-    const MIN_WORD_COUNT = 4;
-    const MAX_WORD_COUNT = 7;
-    const MAX_ATTEMPTS = 5000;
-    const CANDIDATE_PUZZLE_COUNT = 10;
+  const MIN_WORD_COUNT = 4;
+  const MAX_WORD_COUNT = 7;
+  const MAX_ATTEMPTS = 8000; // 5000'den artırıldı
+  const CANDIDATE_PUZZLE_COUNT = 25; // 10'dan artırıldı
 
-    const getFreshWordsFromTier = (tier: string[]) =>
-        tier.filter(w => w.length === difficulty && !RECENTLY_USED_BASE_WORDS_CACHE.includes(w));
+  const tiers = tiersByLength.get(difficulty);
+  if (!tiers) {
+    console.error(`Zorluk ${difficulty} için kelime havuzu bulunamadı.`);
+    return null;
+  }
 
-    let candidateBaseWords = getFreshWordsFromTier(tier1BaseWords);
-    if (candidateBaseWords.length < 20) {
-        candidateBaseWords.push(...getFreshWordsFromTier(tier2BaseWords));
+  // Önbellekte olmayan kelimeleri bul
+  const getFreshWords = (tier: string[]) => 
+    tier.filter(w => !isInCache(difficulty, w));
+
+  let candidateBaseWords = getFreshWords(tiers.tier1);
+  
+  // Tier 1 yetersizse karıştırarak tier 2 ekle
+  if (candidateBaseWords.length < 50) {
+    candidateBaseWords.push(...getFreshWords(tiers.tier2));
+  }
+  
+  // Hala yetersizse tier 3 ekle
+  if (candidateBaseWords.length < 50) {
+    candidateBaseWords.push(...getFreshWords(tiers.tier3));
+  }
+
+  // Hiç kelime yoksa önbelleği sıfırla
+  if (candidateBaseWords.length === 0) {
+    console.warn(`${difficulty} harf için taze kelime yok. Önbellek temizleniyor.`);
+    RECENTLY_USED_CACHE.delete(difficulty);
+    candidateBaseWords = [...tiers.tier1, ...tiers.tier2, ...tiers.tier3];
+  }
+
+  // Kelimeleri karıştır (daha iyi çeşitlilik için)
+  const shuffledCandidates = candidateBaseWords
+    .sort(() => Math.random() - 0.5)
+    .slice(0, Math.min(candidateBaseWords.length, 500)); // En fazla 500 adaydan seç
+
+  interface PuzzleCandidate {
+    letters: string[];
+    words: string[];
+    score: number;
+    baseWord: string;
+    diversity: number;
+  }
+
+  const foundPuzzles: PuzzleCandidate[] = [];
+  let attempts = 0;
+
+  for (const baseWord of shuffledCandidates) {
+    if (attempts >= MAX_ATTEMPTS || foundPuzzles.length >= CANDIDATE_PUZZLE_COUNT) {
+      break;
     }
-    if (candidateBaseWords.length < 20) {
-        candidateBaseWords.push(...getFreshWordsFromTier(tier3BaseWords));
+    attempts++;
+
+    const letters = [...baseWord];
+    const constructibleSet = generateWordsFromLetters(letters, allWordsSet, difficulty);
+    const wordsArray = Array.from(constructibleSet);
+
+    // Alt-kelime içerenleri filtrele
+    const filteredWords = wordsArray.filter(word =>
+      !wordsArray.some(otherWord => otherWord !== word && otherWord.includes(word))
+    );
+
+    if (filteredWords.length < MIN_WORD_COUNT || filteredWords.length > MAX_WORD_COUNT) {
+      continue;
     }
 
-    if (candidateBaseWords.length === 0) {
-      console.warn(`Bu zorlukta (${difficulty}) hiç taze temel kelime bulunamadı. Önbellek sıfırlanıyor.`);
-      RECENTLY_USED_BASE_WORDS_CACHE.length = 0;
-      candidateBaseWords = allWordsArray.filter(w => w.length === difficulty);
-      if (candidateBaseWords.length === 0) return null;
-    }
+    // 3 harfli kelime kontrolü
+    const threeLetterCount = filteredWords.filter(w => w.length === 3).length;
+    if (threeLetterCount > 2) continue;
 
-    const foundPuzzles: { letters: string[], words: string[], score: number, baseWord: string }[] = [];
-    const shuffledCandidates = candidateBaseWords.sort(() => 0.5 - Math.random());
-    
-    let attempts = 0;
-    let baseWord: string | undefined;
+    // Çeşitlilik skoru: farklı uzunluklardaki kelime sayısı
+    const lengthSet = new Set(filteredWords.map(w => w.length));
+    const diversity = lengthSet.size;
 
-    while ((baseWord = shuffledCandidates.pop()) && attempts < MAX_ATTEMPTS && foundPuzzles.length < CANDIDATE_PUZZLE_COUNT) {
-        attempts++;
+    // Toplam skor: kelime sayısı + uzunluk bonusu + çeşitlilik bonusu
+    const lengthBonus = filteredWords.reduce((sum, w) => sum + w.length, 0) / 10;
+    const diversityBonus = diversity * 2;
+    const score = filteredWords.length + lengthBonus + diversityBonus;
 
-        const letters = [...baseWord];
-        const constructibleSet = generateWordsFromLetters(letters, allWordsSet, difficulty);
-        const wordsArray = Array.from(constructibleSet);
+    foundPuzzles.push({
+      letters,
+      words: filteredWords,
+      score,
+      baseWord,
+      diversity
+    });
+  }
 
-        const filteredWords = wordsArray.filter(word =>
-            !wordsArray.some(otherWord => otherWord !== word && otherWord.includes(word))
-        );
+  if (foundPuzzles.length === 0) {
+    console.error(`❌ ${attempts} denemeden sonra uygun bulmaca bulunamadı.`);
+    return null;
+  }
 
-        if (filteredWords.length < MIN_WORD_COUNT || filteredWords.length > MAX_WORD_COUNT) continue;
+  // En iyi bulmacayı seç (skor + çeşitlilik)
+  foundPuzzles.sort((a, b) => {
+    const scoreDiff = b.score - a.score;
+    if (Math.abs(scoreDiff) > 0.5) return scoreDiff;
+    return b.diversity - a.diversity;
+  });
 
-        const threeLetterWordCount = filteredWords.filter(w => w.length === 3).length;
-        if (threeLetterWordCount > 2) continue;
+  const bestPuzzle = foundPuzzles[0]!;
+  addToCache(difficulty, bestPuzzle.baseWord);
 
-        const score = filteredWords.length + (filteredWords.reduce((sum, w) => sum + w.length, 0) / 10);
-        foundPuzzles.push({ letters, words: filteredWords, score, baseWord });
-    }
+  const finalWords = bestPuzzle.words.sort((a, b) => 
+    a.length - b.length || a.localeCompare(b)
+  );
 
-    if (foundPuzzles.length === 0) {
-        console.error(`❌ Hiç uygun bulmaca bulunamadı.`);
-        return null;
-    }
+  console.log(`✅ Bulmaca bulundu (${foundPuzzles.length} aday, ${attempts} deneme)`);
+  console.log(`   Temel: ${bestPuzzle.baseWord} | Kelime: ${finalWords.length} | Çeşitlilik: ${bestPuzzle.diversity}`);
+  sendToTelegram(`✅ Bulmaca: ${bestPuzzle.baseWord} (${finalWords.length} kelime)`);
+  console.log(`🧩 Kelimeler: ${finalWords.join(', ')}`);
+  sendToTelegram(`🧩 Kelimeler: ${finalWords.join(', ')}`);
 
-    foundPuzzles.sort((a, b) => b.score - a.score);
-    const bestPuzzle = foundPuzzles[0]!;
-
-    addWordToCache(bestPuzzle.baseWord);
-
-    const finalWords = bestPuzzle.words.sort((a, b) => a.length - b.length || a.localeCompare(b));
-
-    console.log(`✅ En iyi bulmaca bulundu (${foundPuzzles.length} aday arasından). Temel kelime: ${bestPuzzle.baseWord} (Kalite: ${getWordScore(bestPuzzle.baseWord).toFixed(0)})`);
-    sendToTelegram(`✅ Bulmaca bulundu. Temel: ${bestPuzzle.baseWord}`);
-    console.log(`Harfler: ${bestPuzzle.letters.join(', ')}`);
-    console.log(`Kelimeler (${finalWords.length}): ${finalWords.join(', ')}`);
-    sendToTelegram(`Kelimeler (${finalWords.length}): ${finalWords.join(', ')}`);
-
-    return { letters: bestPuzzle.letters, words: finalWords };
+  return { letters: bestPuzzle.letters, words: finalWords };
 }
 
 // ------------------- Socket.IO Konfigürasyonu -------------------
