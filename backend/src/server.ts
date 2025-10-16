@@ -214,8 +214,18 @@ const disconnectedPlayerTimers = new Map<string, NodeJS.Timeout>();
 const socketToPlayer = new Map<string, { roomId: string, playerName: string }>();
 
 io.on('connection', (socket) => {
-  console.log(`✨ Yeni bir kullanıcı bağlandı: ${socket.id}`);
-  sendToTelegram(`✨ Yeni bir kullanıcı bağlandı: ${socket.id}`);
+  console.log(`🔌 bağlantı: ${socket.id}`)
+  sendToTelegram(`🔌 bağlantı: ${socket.id}`);
+
+  socket.on('playerLoggedFirstIn', ({ playerName }) => {
+    console.log(`👤 ${playerName} isimli oyuncu kayıt oldu.`);
+    sendToTelegram(`👤 ${playerName} isimli oyuncu kayıt oldu.`);
+  });
+
+  socket.on('playerLoggedIn', ({ playerName }) => {
+    console.log(`👤 ${playerName} isimli oyuncu giriş yaptı.`);
+    sendToTelegram(`👤 ${playerName} isimli oyuncu giriş yaptı.`);
+  });
 
   socket.on('createRoom', ({ difficulty, roomName, playerName }) => {
     if (emptyRoomTimers.has(roomName)) {

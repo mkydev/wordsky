@@ -64,6 +64,8 @@ function setPlayerName() {
     playerName.value = tempPlayerName.value.trim();
     localStorage.setItem('wordsky_playerName', playerName.value);
     showNameInput.value = false;
+    // Oyuncu giriş yaptığında backend'e log gönder
+    socket.emit('playerLoggedFirstIn', { playerName: playerName.value });
   }
 }
 
@@ -211,7 +213,11 @@ onMounted(() => {
   if (savedName) {
     playerName.value = savedName;
     showNameInput.value = false;
+    // Kayıtlı isimle giriş yapıldığında backend'e log gönder
+    socket.emit('playerLoggedIn', { playerName: savedName });
   }
+  
+  socket.connect();
 
   socket.on('roomCreated', (data) => {
     roomId.value = data.roomId;
