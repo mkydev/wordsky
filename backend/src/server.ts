@@ -214,8 +214,8 @@ const disconnectedPlayerTimers = new Map<string, NodeJS.Timeout>();
 const socketToPlayer = new Map<string, { roomId: string, playerName: string }>();
 
 io.on('connection', (socket) => {
-  console.log(`🔌 bağlantı: ${socket.id}`)
-  sendToTelegram(`🔌 bağlantı: ${socket.id}`);
+  console.log(`🔌 Yeni bağlantı: ${socket.id}`)
+  sendToTelegram(`🔌 Yeni bağlantı: ${socket.id}`);
 
   socket.on('playerLoggedFirstIn', ({ playerName }) => {
     console.log(`👤 ${playerName} isimli oyuncu kayıt oldu.`);
