@@ -42,6 +42,14 @@ const isTransitioningToNextRound = ref(false);
 const isChatOpen = ref(false);
 const messages = ref<{ playerName: string, message: string, timestamp: string }[]>([]);
 const newMessage = ref('');
+const unreadCount = ref(0);
+
+// Chat açıldığında okunmamış sayacını sıfırla
+watch(isChatOpen, (newVal) => {
+  if (newVal) {
+    unreadCount.value = 0;
+  }
+});
 
 // --- Crossword ve Kelime Yönetimi ---
 const { grid, placedWords } = useCrossword(computed(() => apiWords.value));
@@ -143,10 +151,12 @@ function goBackToMenu() {
   localFoundWords.value = [];
   error.value = null;
   messages.value = [];
+  unreadCount.value = 0;
 }
 
 watch(roomId, () => {
   messages.value = [];
+  unreadCount.value = 0;
 });
 
 watch(currentSelectedWord, (newWord: string) => {
@@ -247,6 +257,10 @@ onMounted(() => {
 
   socket.on('newMessage', (message) => {
     messages.value.push(message);
+    // Chat kapalıysa okunmamış sayacı artır
+    if (!isChatOpen.value) {
+      unreadCount.value++;
+    }
   });
 
   socket.on('error', (data) => {
@@ -406,6 +420,7 @@ watch(currentThemeIndex, (newIndex) => {
                     <div class="chat-bubble-container">
                       <button v-if="isMultiplayer" @click="isChatOpen = !isChatOpen" class="chat-bubble-button">
                         <span class="chat-icon">💬</span>
+                        <span v-if="unreadCount > 0" class="unread-badge">{{ unreadCount }}</span>
                       </button>
                     </div>
                 </div>
@@ -447,8 +462,8 @@ header { display: flex; align-items: center; justify-content: center; padding: 0
 .back-button { background: var(--button-bg); border: 1px solid var(--button-border); color: var(--text-color); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; cursor: pointer; transition: all 0.2s ease; position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); }
 .header-actions { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 0.5rem; }
 .header-btn { background: var(--button-bg); border: 1px solid var(--button-border); color: var(--text-color); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; cursor: pointer; transition: all 0.2s ease; }
-.theme-switcher-container { position: relative; } /* Konumlandırma için eklendi */
-.theme-selector-popover { position: absolute; top: 50px; right: 0; background-color: var(--background-color); border: 1px solid var(--button-border); border-radius: 8px; padding: 0.5rem; z-index: 10; display: flex; flex-direction: column; gap: 0.5rem; } /* Flex özellikleri eklendi */
+.theme-switcher-container { position: relative; }
+.theme-selector-popover { position: absolute; top: 50px; right: 0; background-color: var(--background-color); border: 1px solid var(--button-border); border-radius: 8px; padding: 0.5rem; z-index: 10; display: flex; flex-direction: column; gap: 0.5rem; }
 .theme-option {
   display: flex;
   align-items: center;
@@ -464,10 +479,10 @@ header { display: flex; align-items: center; justify-content: center; padding: 0
 }
 .theme-option:hover { background-color: var(--button-hover-bg); }
 .theme-color-dot {
-  width: 16px; /* DÜZELTME: Boyut eklendi */
-  height: 16px; /* DÜZELTME: Boyut eklendi */
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  border: 1px solid var(--button-border); /* DÜZELTME: Sınır eklendi */
+  border: 1px solid var(--button-border);
 }
 h1 { font-size: clamp(1.1rem, 4.5vw, 1.8rem); margin: 0; text-align: center; flex-grow: 1; padding: 0 110px; box-sizing: border-box; }
 .level-selector { flex: 1; display: flex; justify-content: center; align-items: center; flex-direction: column; gap: 2rem; width: 100%; max-width: 800px; margin: 0 auto; padding: 1rem; }
@@ -525,6 +540,23 @@ h1 { font-size: clamp(1.1rem, 4.5vw, 1.8rem); margin: 0; text-align: center; fle
   align-items: center;
   cursor: pointer;
   box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  position: relative;
+}
+.unread-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: #ff4444;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: bold;
+  border: 2px solid var(--background-color);
 }
 
 /* Chat Popup Stilleri */
