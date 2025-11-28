@@ -6,9 +6,6 @@ import vueJsx from '@vitejs/plugin-vue-jsx'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
 export default defineConfig({
-  build: {
-    target: 'esnext',
-  },
   plugins: [
     vue(),
     vueJsx(),

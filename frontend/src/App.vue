@@ -11,7 +11,10 @@ const showSplash = ref(true);
 
 // --- Temel Değişkenler ---
 const apiUrl = import.meta.env.VITE_API_BASE_URL || '';
-const socket = io(apiUrl);
+const socket = io(apiUrl, {
+  transports: ['websocket', 'polling'],
+  withCredentials: true
+});
 
 const apiWords = ref<string[]>([]);
 const letters = ref<string[]>([]);
@@ -283,7 +286,7 @@ onMounted(() => {
 const themes = [
   { name: 'Default', class: 'default', color: '#2c3e50' },
   { name: 'Sky', class: 'theme-baby-blue', color: '#A1C9F4' },
-  { name: 'PHaze', class: 'theme-purple', color: '#4a148c' },
+  { name: 'Pu', class: 'theme-purple', color: '#4a148c' },
   { name: 'Oranje', class: 'theme-orange', color: '#e65100' },
   { name: 'Walnut', class: 'theme-walnut-green', color: '#556B2F' },
 
