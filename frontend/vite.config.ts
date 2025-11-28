@@ -6,6 +6,9 @@ import vueJsx from '@vitejs/plugin-vue-jsx'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
 export default defineConfig({
+  build: {
+    target: 'esnext',
+  },
   plugins: [
     vue(),
     vueJsx(),
@@ -27,14 +30,5 @@ export default defineConfig({
         ws: true,
       },
     }
-  },
-  build: {
-    rollupOptions: {
-      input: {
-        main: 'index.html',
-        splash: 'src/splash.html',
-      },
-    },
-    target: 'esnest',
-  },
+  }
 })
