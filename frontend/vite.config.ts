@@ -27,5 +27,14 @@ export default defineConfig({
         ws: true,
       },
     }
-  }
+  },
+  build: {
+    rollupOptions: {
+      input: {
+        main: 'index.html',
+        splash: 'src/splash.html',
+      },
+    },
+    target: 'es2020',
+  },
 })
