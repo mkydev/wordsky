@@ -35,6 +35,6 @@ export default defineConfig({
         splash: 'src/splash.html',
       },
     },
-    target: 'es2020',
+    target: 'esnest',
   },
 })
