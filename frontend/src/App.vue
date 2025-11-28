@@ -12,8 +12,7 @@ const showSplash = ref(true);
 // --- Temel Değişkenler ---
 const apiUrl = import.meta.env.VITE_API_BASE_URL || '';
 const socket = io(apiUrl, {
-  transports: ['websocket', 'polling'],
-  withCredentials: true
+  transports: ['websocket', 'polling']
 });
 
 const apiWords = ref<string[]>([]);
