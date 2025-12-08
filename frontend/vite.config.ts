@@ -4,12 +4,17 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import vueDevTools from 'vite-plugin-vue-devtools'
+import legacy from '@vitejs/plugin-legacy' // <--- BU SATIRI EKLE
 
 export default defineConfig({
   plugins: [
     vue(),
     vueJsx(),
     vueDevTools(),
+    // AŞAĞIDAKİ BLOĞU EKLE:
+    legacy({
+      targets: ['defaults', 'not IE 11'], // Safari ve eski tarayıcılar için otomatik uyumluluk sağlar
+    }),
   ],
   resolve: {
     alias: {
@@ -29,6 +34,7 @@ export default defineConfig({
     }
   },
   build: {
-    target: 'es2015'
+    target: 'es2015', // Bunu tutabilirsin, zararı yok ama legacy plugin asıl işi yapacak.
+    minify: 'terser', // Terser kullanarak daha güvenli sıkıştırma yapalım
   }
 })
