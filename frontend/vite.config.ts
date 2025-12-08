@@ -27,5 +27,8 @@ export default defineConfig({
         ws: true,
       },
     }
+  },
+  build: {
+    target: 'es2015'
   }
 })
