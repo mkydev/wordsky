@@ -4,16 +4,16 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import vueDevTools from 'vite-plugin-vue-devtools'
-import legacy from '@vitejs/plugin-legacy' // <--- BU SATIRI EKLE
+import legacy from '@vitejs/plugin-legacy' // EKLENDİ
 
 export default defineConfig({
   plugins: [
     vue(),
     vueJsx(),
     vueDevTools(),
-    // AŞAĞIDAKİ BLOĞU EKLE:
+    // Legacy eklentisi Safari ve eski tarayıcı sorunlarını çözer
     legacy({
-      targets: ['defaults', 'not IE 11'], // Safari ve eski tarayıcılar için otomatik uyumluluk sağlar
+      targets: ['defaults', 'not IE 11'],
     }),
   ],
   resolve: {
@@ -34,7 +34,9 @@ export default defineConfig({
     }
   },
   build: {
-    target: 'es2015', // Bunu tutabilirsin, zararı yok ama legacy plugin asıl işi yapacak.
-    minify: 'terser', // Terser kullanarak daha güvenli sıkıştırma yapalım
+    // Legacy plugin kullanıldığı için buradaki target ayarı artık ikincil önemde,
+    // ancak güvenli olması için es2015 bırakılabilir.
+    target: 'es2015',
+    minify: 'terser', // Terser sıkıştırması daha güvenlidir
   }
 })
