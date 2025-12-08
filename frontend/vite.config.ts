@@ -22,6 +22,7 @@ export default defineConfig({
     }
   },
   server: {
+    host: true, // Sunucunun ağdaki diğer cihazlardan erişilebilir olmasını sağlar
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
