@@ -154,6 +154,7 @@ function startSelection(letter: string, index: number) {
   isSelecting.value = true;
   selectedLetters.value = [letter];
   selectedIndices.value = [index];
+  emit('update:currentSelectedWord', '');
 }
 
 function handleSelection(letter: string, index: number) {
@@ -185,7 +186,6 @@ function endSelection() {
     emit('update:currentSelectedWord', currentWord.value);
     selectedLetters.value = [];
     selectedIndices.value = [];
-    emit('update:currentSelectedWord', '');
   }
 }
 
