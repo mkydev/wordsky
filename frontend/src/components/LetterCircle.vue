@@ -103,9 +103,7 @@ const selectedLetters = ref<string[]>([]);
 const selectedIndices = ref<number[]>([]);
 const currentWord = computed(() => selectedLetters.value.join(''));
 
-watch(currentWord, (newVal) => {
-    emit('update:currentSelectedWord', newVal);
-});
+
 
 const linePath = computed(() => {
     if (selectedIndices.value.length < 2) return '';
@@ -187,6 +185,7 @@ function endSelection() {
     emit('update:currentSelectedWord', currentWord.value);
     selectedLetters.value = [];
     selectedIndices.value = [];
+    emit('update:currentSelectedWord', '');
   }
 }
 
